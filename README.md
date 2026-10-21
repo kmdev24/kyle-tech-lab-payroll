@@ -80,15 +80,15 @@ npx prisma db push        # creates the tables in TiDB
 npm run db:seed           # creates Kyle + Mom accounts
 npm run dev
 ```
-Set `SEED_SAMPLE_CUTOFFS=false` before seeding if you don't want the two sample weeks.
+Set `SEED_SAMPLE_CUTOFFS=true` before seeding if you want two demo weeks.
 
 ### 3. Resend
 Create an API key at https://resend.com, verify your sending domain, then set `RESEND_API_KEY` and `EMAIL_FROM` (e.g. `KYLE TECH LAB <payroll@yourdomain.com>`). Set Mom's email and PDF password in **Settings**.
 
 ### 4. Vercel
-1. Push this folder to GitHub and import it in Vercel (framework: Next.js; build command is already `prisma generate && next build`).
-2. Add env vars: `DATABASE_URL`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL` (your production URL), `RESEND_API_KEY`, `EMAIL_FROM`.
-3. Run `npx prisma db push` and `npm run db:seed` once from your machine against the TiDB URL.
+1. Import the GitHub repo in Vercel (framework: Next.js). Vercel runs the `vercel-build` script, which does `prisma db push` + seed + `next build`, so the tables and logins are created on the first deploy with no local commands.
+2. Add env vars: `DATABASE_URL`, `NEXTAUTH_SECRET`, `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD`, `SEED_VIEWER_EMAIL`, `SEED_VIEWER_PASSWORD`, `SEED_PDF_PASSWORD`, and when ready `RESEND_API_KEY`, `EMAIL_FROM`. Leave `NEXTAUTH_URL` unset on Vercel.
+3. The seed never changes existing users, so leaving the SEED_* variables in place is safe.
 
 ## Notes
 - The PDF password is stored in the database in plain text because it's needed to encrypt each payslip; treat it as a PIN, not a secret.

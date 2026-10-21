@@ -24,25 +24,31 @@ async function main() {
   const adminEmail = env("SEED_ADMIN_EMAIL", "kyle@example.com").toLowerCase();
   const viewerEmail = env("SEED_VIEWER_EMAIL", "mom@example.com").toLowerCase();
 
-  await prisma.user.upsert({
+  // Accounts are only created when their password is provided, so a deploy
+  // without SEED_* variables never creates a login with a default password.
+  // Existing users are never modified.
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD;
+  const viewerPassword = process.env.SEED_VIEWER_PASSWORD;
+
+  if (adminPassword) await prisma.user.upsert({
     where: { email: adminEmail },
     update: {},
     create: {
       email: adminEmail,
       name: "Kyle",
       role: Role.ADMIN,
-      passwordHash: await bcrypt.hash(env("SEED_ADMIN_PASSWORD", "change-me-admin"), 12),
+      passwordHash: await bcrypt.hash(adminPassword, 12),
     },
   });
 
-  await prisma.user.upsert({
+  if (viewerPassword) await prisma.user.upsert({
     where: { email: viewerEmail },
     update: {},
     create: {
       email: viewerEmail,
       name: "Mom",
       role: Role.VIEWER,
-      passwordHash: await bcrypt.hash(env("SEED_VIEWER_PASSWORD", "change-me-mom"), 12),
+      passwordHash: await bcrypt.hash(viewerPassword, 12),
     },
   });
 
@@ -55,14 +61,14 @@ async function main() {
       accountName: "",
       accountNumber: "",
       recipientEmail: viewerEmail,
-      pdfPassword: env("SEED_PDF_PASSWORD", "01011970"),
+      pdfPassword: env("SEED_PDF_PASSWORD", ""),
       fxFeePercent: 1.5,
       houseFundGoalPhp: 3000000,
     },
   });
 
-  // Two sample weeks so the dashboard isn't empty: last week (received) and this week (pending).
-  if (process.env.SEED_SAMPLE_CUTOFFS !== "false") {
+  // Two sample weeks (opt-in): last week (received) and this week (pending).
+  if (process.env.SEED_SAMPLE_CUTOFFS === "true") {
     const now = new Date();
     const thisWeek = weekFor(now);
     const lastWeek = weekFor(new Date(now.getTime() - 7 * 86400000));
@@ -93,7 +99,10 @@ async function main() {
     });
   }
 
-  console.log(`Seeded admin ${adminEmail} and viewer ${viewerEmail}`);
+  console.log(
+    `Seed done. Admin ${adminEmail}: ${adminPassword ? "ensured" : "skipped (no SEED_ADMIN_PASSWORD)"}. ` +
+      `Viewer ${viewerEmail}: ${viewerPassword ? "ensured" : "skipped (no SEED_VIEWER_PASSWORD)"}.`,
+  );
 }
 
 main()
