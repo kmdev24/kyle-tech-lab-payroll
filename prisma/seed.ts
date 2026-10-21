@@ -62,7 +62,8 @@ async function main() {
       accountNumber: "",
       recipientEmail: viewerEmail,
       pdfPassword: env("SEED_PDF_PASSWORD", ""),
-      fxFeePercent: 1.5,
+      fxFeePercent: 1.0,
+      fxFeeCalibrated: true,
       houseFundGoalPhp: 3000000,
     },
   });
@@ -77,6 +78,18 @@ async function main() {
       });
     }
     await prisma.paymentSettings.update({ where: { id: 1 }, data: { goalsInitialized: true } });
+  }
+
+  // One-time: move the old 1.5% placeholder fee to the calibrated 1.0%.
+  // Only touches the untouched default; a fee Kyle set himself is kept.
+  if (!settings.fxFeeCalibrated) {
+    await prisma.paymentSettings.update({
+      where: { id: 1 },
+      data: {
+        fxFeeCalibrated: true,
+        ...(Number(settings.fxFeePercent) === 1.5 ? { fxFeePercent: 1.0 } : {}),
+      },
+    });
   }
 
   // Two sample weeks (opt-in): last week (received) and this week (pending).

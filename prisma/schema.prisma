@@ -74,8 +74,10 @@ model PaymentSettings {
   accountNumber    String   @default("")
   recipientEmail   String   @default("")
   pdfPassword      String   @default("")
-  // Stripe FX conversion fee/margin deducted from the live rate (1.5 = 1.5%)
-  fxFeePercent     Decimal  @default(1.50) @db.Decimal(5, 2)
+  // Stripe FX conversion fee/margin deducted from the live rate (1.0 = 1.0%).
+  // Default calibrated from a real Mercor/Stripe payout: 62.3271 vs ~62.93 mid on Oct 14, 2026.
+  fxFeePercent     Decimal  @default(1.00) @db.Decimal(5, 2)
+  fxFeeCalibrated  Boolean  @default(false)
   // Legacy single goal; superseded by SavingsGoal (used once to seed "House Fund").
   houseFundGoalPhp Decimal  @default(3000000) @db.Decimal(14, 2)
   goalsInitialized Boolean  @default(false)
