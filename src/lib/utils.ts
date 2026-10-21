@@ -23,3 +23,11 @@ export function formatDate(d: Date | string, opts: Intl.DateTimeFormatOptions = 
 }
 
 export const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
+
+/**
+ * PDF passwords are typed into env vars and forms, where stray spaces or
+ * wrapping quotes (e.g. "08071980" pasted with the quotes) are easy to add.
+ */
+export function normalizePdfPassword(raw: string | null | undefined) {
+  return (raw ?? "").trim().replace(/^(["'])(.*)\1$/, "$2").trim();
+}

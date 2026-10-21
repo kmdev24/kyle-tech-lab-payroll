@@ -12,7 +12,8 @@ const pdfPhp = (n: number) =>
  * Builds Mom's payslip. It accepts only the viewer projection (ViewerCutoff),
  * so gross revenue, the $30/hr base rate and Kyle's share cannot end up in it.
  *
- * Encrypted with AES-256 (PDF 1.7 ext 3). Opening requires `password`;
+ * Encrypted with AES-128 (PDF 1.7, revision 4), which every reader supports
+ * (the AES-256 "1.7ext3" variant is deprecated). Opening requires `password`;
  * the owner password is random, so the document can't be edited.
  */
 export function buildPayslipPdf(opts: {
@@ -26,7 +27,7 @@ export function buildPayslipPdf(opts: {
   const doc = new PDFDocument({
     size: "A4",
     margin: 56,
-    pdfVersion: "1.7ext3",
+    pdfVersion: "1.7",
     userPassword: password || undefined,
     ownerPassword: randomBytes(24).toString("hex"),
     permissions: { printing: "highResolution", copying: true },

@@ -2,6 +2,7 @@ import { prisma } from "./prisma";
 import { getPaymentDestination, getViewerCutoff } from "./data";
 import { buildPayslipPdf } from "./pdf";
 import { sendPayslipEmail, type EmailResult } from "./email";
+import { normalizePdfPassword } from "./utils";
 
 async function viewerName() {
   const viewer = await prisma.user.findFirst({ where: { role: "VIEWER" }, select: { name: true } });
@@ -21,7 +22,7 @@ export async function generatePayslip(cutoffId: string) {
     cutoff,
     destination,
     recipientName,
-    password: settings?.pdfPassword ?? "",
+    password: normalizePdfPassword(settings?.pdfPassword),
   });
   return { pdf, cutoff, recipientName, recipientEmail: settings?.recipientEmail ?? "" };
 }

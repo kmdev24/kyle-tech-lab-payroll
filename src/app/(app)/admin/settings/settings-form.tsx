@@ -76,6 +76,15 @@ export function SettingsForm({ settings, emailConfigured }: { settings: Settings
             <Field label="PDF password" htmlFor="pdfPassword" hint="e.g. her PIN or birthdate (MMDDYYYY). Leave blank for no password.">
               <Input id="pdfPassword" name="pdfPassword" defaultValue={settings.pdfPassword} autoComplete="off" />
             </Field>
+            <p className="rounded-md border border-violet-500/30 bg-violet-500/10 px-3 py-2 text-sm">
+              {settings.pdfPassword ? (
+                <>
+                  Payslips currently open with: <code className="font-mono font-semibold">{settings.pdfPassword}</code>
+                </>
+              ) : (
+                "Payslips currently have no password."
+              )}
+            </p>
           </CardContent>
         </Card>
 

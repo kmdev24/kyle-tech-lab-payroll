@@ -20,6 +20,11 @@ function weekFor(date: Date) {
   return { start, end, payout };
 }
 
+// Same rule as normalizePdfPassword in src/lib/utils.ts.
+function seedPdfPassword() {
+  return (process.env.SEED_PDF_PASSWORD ?? "").trim().replace(/^(["'])(.*)\1$/, "$2").trim();
+}
+
 async function main() {
   const adminEmail = env("SEED_ADMIN_EMAIL", "kyle@example.com").toLowerCase();
   const viewerEmail = env("SEED_VIEWER_EMAIL", "mom@example.com").toLowerCase();
@@ -61,7 +66,7 @@ async function main() {
       accountName: "",
       accountNumber: "",
       recipientEmail: viewerEmail,
-      pdfPassword: env("SEED_PDF_PASSWORD", ""),
+      pdfPassword: seedPdfPassword(),
       fxFeePercent: 1.0,
       fxFeeCalibrated: true,
       houseFundGoalPhp: 3000000,
@@ -78,6 +83,12 @@ async function main() {
       });
     }
     await prisma.paymentSettings.update({ where: { id: 1 }, data: { goalsInitialized: true } });
+  }
+
+  // Fill in the payslip password from SEED_PDF_PASSWORD if none is set yet.
+  // A password chosen in Settings is never overwritten.
+  if (!settings.pdfPassword.trim() && seedPdfPassword()) {
+    await prisma.paymentSettings.update({ where: { id: 1 }, data: { pdfPassword: seedPdfPassword() } });
   }
 
   // One-time: move the old 1.5% placeholder fee to the calibrated 1.0%.

@@ -14,7 +14,7 @@ import { prisma } from "./prisma";
 import { applyFee, fetchHistoricalUsdPhp, getFxQuote, type FxQuote } from "./fx";
 import { manilaToday, toDateInput } from "./cutoff";
 import { DEFAULT_FX_FEE_PERCENT } from "./constants";
-import { round2 } from "./utils";
+import { normalizePdfPassword, round2 } from "./utils";
 
 // ---------- Settings ----------
 
@@ -29,7 +29,7 @@ export async function getSettings() {
     accountName: s.accountName,
     accountNumber: s.accountNumber,
     recipientEmail: s.recipientEmail,
-    pdfPassword: s.pdfPassword,
+    pdfPassword: normalizePdfPassword(s.pdfPassword),
     fxFeePercent: Number(s.fxFeePercent ?? DEFAULT_FX_FEE_PERCENT),
     qrPhPayload: s.qrPhPayload ?? "",
   };

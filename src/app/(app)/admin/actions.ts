@@ -10,7 +10,7 @@ import { getSettings } from "@/lib/data";
 import { emailPayslip } from "@/lib/payslip";
 import { validateQrPh } from "@/lib/qrph";
 import { BASE_RATE_USD, VIEWER_RATE_USD, VIEWER_SHARE } from "@/lib/constants";
-import { round2 } from "@/lib/utils";
+import { normalizePdfPassword, round2 } from "@/lib/utils";
 
 export type ActionResult = { ok: boolean; message: string };
 
@@ -175,7 +175,7 @@ const settingsSchema = z.object({
   accountName: z.string().trim().max(120),
   accountNumber: z.string().trim().max(60),
   recipientEmail: z.union([z.literal(""), z.string().trim().email()]),
-  pdfPassword: z.string().max(64),
+  pdfPassword: z.string().max(64).transform(normalizePdfPassword),
   fxFeePercent: z.coerce.number().min(0).max(20),
   qrPhPayload: z.string().trim().max(1000).optional(),
 });
