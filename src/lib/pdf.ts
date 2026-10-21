@@ -75,7 +75,7 @@ export function buildPayslipPdf(opts: {
 
   section("Cutoff");
   row("Cutoff Period", `${formatDate(cutoff.periodStart)} - ${formatDate(cutoff.periodEnd)}`);
-  row("Payout Date", formatDate(cutoff.payoutDate));
+  row("Salary Date", formatDate(cutoff.arrivalDate, { weekday: "short" }));
   row("Status", cutoff.status === "RECEIVED" ? "Received" : "Pending");
 
   section("Earnings");

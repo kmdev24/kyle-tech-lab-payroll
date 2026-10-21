@@ -178,6 +178,7 @@ const settingsSchema = z.object({
   recipientEmail: z.union([z.literal(""), z.string().trim().email()]),
   pdfPassword: z.string().max(64).transform(normalizePdfPassword),
   fxFeePercent: z.coerce.number().min(0).max(20),
+  arrivalDays: z.coerce.number().int().min(0).max(30),
   qrPhPayload: z.string().trim().max(1000).optional(),
 });
 

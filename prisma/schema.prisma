@@ -82,6 +82,9 @@ model PaymentSettings {
   fxFeePercent     Decimal  @default(1.00) @db.Decimal(5, 2)
   fxFeeCalibrated  Boolean  @default(false)
   // Legacy single goal; superseded by SavingsGoal (used once to seed "House Fund").
+  // Days between Mercor sending the payout and it arriving in Kyle's bank.
+  // That arrival day is also when Mom's salary is sent.
+  arrivalDays      Int      @default(5)
   houseFundGoalPhp Decimal  @default(3000000) @db.Decimal(14, 2)
   goalsInitialized Boolean  @default(false)
   // Optional: the static QR Ph / InstaPay string from Mom's own "Receive money" QR.

@@ -1,4 +1,4 @@
-import { CheckCircle2, Clock, Download, Hourglass, Wallet } from "lucide-react";
+import { CalendarClock, CheckCircle2, Clock, Download, Hourglass, Wallet } from "lucide-react";
 import type { getViewerDashboard } from "@/lib/data";
 import { StatCard } from "@/components/stat-card";
 import { StatusBadge } from "@/components/status-badge";
@@ -12,13 +12,33 @@ type Data = Awaited<ReturnType<typeof getViewerDashboard>>;
 
 // Only receives the viewer projection: hours, $9.00/hr rate, net USD/PHP, status.
 export function ViewerDashboard({ name, data }: { name: string; data: Data }) {
-  const { totals, cutoffs } = data;
+  const { totals, cutoffs, nextArrival } = data;
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Hi {name} 👋</h1>
         <p className="text-sm text-muted-foreground">Your rate: $9.00 / hour</p>
       </div>
+
+      {nextArrival && (
+        <Card className="border-violet-500/40 bg-violet-500/[0.07]">
+          <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4 sm:p-5">
+            <div className="flex items-center gap-3">
+              <CalendarClock className="h-5 w-5 shrink-0 text-violet-400" />
+              <div>
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">Next salary</div>
+                <div className="font-semibold">{formatDate(nextArrival.date, { weekday: "long" })}</div>
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-xl font-bold tabular-nums">
+                {formatPhp(nextArrival.items.reduce((a, c) => a + (c.netPhp ?? 0), 0))}
+              </div>
+              {nextArrival.items.some((c) => !c.fxLocked) && <div className="text-xs text-muted-foreground">estimate</div>}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard label="Total Hours Worked" value={totals.hours.toFixed(2)} icon={Hourglass} />
@@ -56,7 +76,7 @@ export function ViewerDashboard({ name, data }: { name: string; data: Data }) {
                     <div className="text-sm font-medium">
                       {formatDate(c.periodStart, { year: undefined })} – {formatDate(c.periodEnd)}
                     </div>
-                    <div className="text-xs text-muted-foreground">Payout {formatDate(c.payoutDate)}</div>
+                    <div className="text-xs text-muted-foreground">Salary date {formatDate(c.arrivalDate, { weekday: "short" })}</div>
                   </div>
                   <StatusBadge status={c.status} />
                 </div>
@@ -85,7 +105,7 @@ export function ViewerDashboard({ name, data }: { name: string; data: Data }) {
             <TableHeader>
               <TableRow>
                 <TableHead>Cutoff (Sat – Fri)</TableHead>
-                <TableHead>Payout date</TableHead>
+                <TableHead>Salary date</TableHead>
                 <TableHead className="text-right">Hours</TableHead>
                 <TableHead className="text-right">Rate</TableHead>
                 <TableHead className="text-right">Net USD</TableHead>
@@ -101,7 +121,7 @@ export function ViewerDashboard({ name, data }: { name: string; data: Data }) {
                     {c.kind === "INCENTIVE" && <Badge className="mr-2">Incentive</Badge>}
                     {formatDate(c.periodStart, { year: undefined })} – {formatDate(c.periodEnd)}
                   </TableCell>
-                  <TableCell className="whitespace-nowrap">{formatDate(c.payoutDate)}</TableCell>
+                  <TableCell className="whitespace-nowrap">{formatDate(c.arrivalDate, { weekday: "short" })}</TableCell>
                   <TableCell className="text-right tabular-nums">{c.kind === "INCENTIVE" ? "–" : c.hoursWorked.toFixed(2)}</TableCell>
                   <TableCell className="text-right tabular-nums">{c.kind === "INCENTIVE" ? "–" : `${formatUsd(c.rateUsd)}/hr`}</TableCell>
                   <TableCell className="text-right tabular-nums">{formatUsd(c.netUsd)}</TableCell>

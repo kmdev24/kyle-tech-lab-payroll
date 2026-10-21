@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Banknote, Clock, Home, PiggyBank, TrendingUp, User, Wallet } from "lucide-react";
+import { ArrowRight, CalendarClock, Banknote, Clock, Home, PiggyBank, TrendingUp, User, Wallet } from "lucide-react";
 import type { GoalProgress, getAdminDashboard } from "@/lib/data";
 import { StatCard } from "@/components/stat-card";
 import { StatusBadge } from "@/components/status-badge";
@@ -14,7 +14,7 @@ import { FxCard } from "@/components/fx-card";
 type Data = Awaited<ReturnType<typeof getAdminDashboard>>;
 
 export function AdminDashboard({ data, goals }: { data: Data; goals: GoalProgress[] }) {
-  const { totals, fx, cutoffs } = data;
+  const { totals, fx, cutoffs, nextArrival } = data;
 
   return (
     <div className="space-y-6">
@@ -29,6 +29,26 @@ export function AdminDashboard({ data, goals }: { data: Data; goals: GoalProgres
           </Link>
         </Button>
       </div>
+
+      {nextArrival && (
+        <Card className="border-violet-500/40 bg-violet-500/[0.07]">
+          <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4 sm:p-5">
+            <div className="flex items-center gap-3">
+              <CalendarClock className="h-5 w-5 shrink-0 text-violet-400" />
+              <div>
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">Next arrival in your bank</div>
+                <div className="font-semibold">{formatDate(nextArrival.date, { weekday: "long" })}</div>
+              </div>
+            </div>
+            <div className="text-right text-sm tabular-nums">
+              <div className="text-xl font-bold">{formatPhp(nextArrival.items.reduce((a, c) => a + (c.grossPhp ?? 0), 0))}</div>
+              <div className="text-muted-foreground">
+                Send Mom {formatPhp(nextArrival.items.reduce((a, c) => a + (c.netPhp ?? 0), 0))} that day
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
@@ -105,7 +125,7 @@ export function AdminDashboard({ data, goals }: { data: Data; goals: GoalProgres
                       {formatDate(c.periodStart, { year: undefined })} – {formatDate(c.periodEnd)}
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      Payout {formatDate(c.payoutDate)}
+                      Payout {formatDate(c.payoutDate)} · arrives {formatDate(c.arrivalDate, { weekday: "short", year: undefined })}
                       {c.kind === "CONTRACT" && ` · ${c.hoursWorked.toFixed(2)} hrs`}
                     </div>
                   </div>
@@ -138,6 +158,7 @@ export function AdminDashboard({ data, goals }: { data: Data; goals: GoalProgres
               <TableRow>
                 <TableHead>Period</TableHead>
                 <TableHead>Payout</TableHead>
+                <TableHead>Arrives</TableHead>
                 <TableHead className="text-right">Hours</TableHead>
                 <TableHead className="text-right">Gross</TableHead>
                 <TableHead className="text-right">Kyle 70%</TableHead>
@@ -153,6 +174,7 @@ export function AdminDashboard({ data, goals }: { data: Data; goals: GoalProgres
                     {formatDate(c.periodStart, { year: undefined })} – {formatDate(c.periodEnd)}
                   </TableCell>
                   <TableCell className="whitespace-nowrap">{formatDate(c.payoutDate)}</TableCell>
+                  <TableCell className="whitespace-nowrap">{formatDate(c.arrivalDate, { weekday: "short" })}</TableCell>
                   <TableCell className="text-right tabular-nums">{c.kind === "INCENTIVE" ? "–" : c.hoursWorked.toFixed(2)}</TableCell>
                   <TableCell className="text-right tabular-nums">
                     {formatUsd(c.grossUsd)}
@@ -173,7 +195,7 @@ export function AdminDashboard({ data, goals }: { data: Data; goals: GoalProgres
               ))}
               {cutoffs.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={7} className="py-10 text-center text-muted-foreground">
+                  <TableCell colSpan={8} className="py-10 text-center text-muted-foreground">
                     No cutoffs yet.
                   </TableCell>
                 </TableRow>

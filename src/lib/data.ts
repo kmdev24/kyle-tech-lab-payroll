@@ -31,6 +31,7 @@ export async function getSettings() {
     recipientEmail: s.recipientEmail,
     pdfPassword: normalizePdfPassword(s.pdfPassword),
     fxFeePercent: Number(s.fxFeePercent ?? DEFAULT_FX_FEE_PERCENT),
+    arrivalDays: s.arrivalDays,
     qrPhPayload: s.qrPhPayload ?? "",
   };
 }
@@ -121,6 +122,8 @@ export type ViewerCutoff = {
   periodStart: string;
   periodEnd: string;
   payoutDate: string;
+  /** When the money lands in Kyle's bank (payout date + arrivalDays); Mom is paid that day. */
+  arrivalDate: string;
   hoursWorked: number;
   rateUsd: number;
   netUsd: number;
@@ -146,6 +149,7 @@ function toViewerCutoff(
     stripeRate: unknown;
   },
   live: FxQuote,
+  arrivalDays: number,
 ): ViewerCutoff {
   const hours = Number(row.hoursWorked);
   const rate = Number(row.viewerRate);
@@ -157,6 +161,7 @@ function toViewerCutoff(
     periodStart: row.periodStart.toISOString(),
     periodEnd: row.periodEnd.toISOString(),
     payoutDate: row.payoutDate.toISOString(),
+    arrivalDate: new Date(row.payoutDate.getTime() + arrivalDays * 86_400_000).toISOString(),
     hoursWorked: hours,
     rateUsd: rate,
     netUsd,
@@ -170,12 +175,13 @@ function toViewerCutoff(
 export async function getViewerDashboard() {
   await lockPayoutDateRates();
   const [settings, rows] = await Promise.all([
-    prisma.paymentSettings.findUnique({ where: { id: 1 }, select: { fxFeePercent: true } }),
+    prisma.paymentSettings.findUnique({ where: { id: 1 }, select: { fxFeePercent: true, arrivalDays: true } }),
     // Incentives are 100% Kyle's, so Mom's queries only ever see contract weeks.
     prisma.cutoff.findMany({ where: { kind: "CONTRACT" }, select: viewerSelect, orderBy: { periodStart: "desc" } }),
   ]);
   const live = await getFxQuote(Number(settings?.fxFeePercent ?? DEFAULT_FX_FEE_PERCENT));
-  const cutoffs = rows.map((r) => toViewerCutoff(r, live));
+  const arrivalDays = settings?.arrivalDays ?? 5;
+  const cutoffs = rows.map((r) => toViewerCutoff(r, live, arrivalDays));
 
   const sum = (xs: ViewerCutoff[], f: (c: ViewerCutoff) => number | null) =>
     round2(xs.reduce((a, c) => a + (f(c) ?? 0), 0));
@@ -184,6 +190,7 @@ export async function getViewerDashboard() {
 
   return {
     cutoffs,
+    nextArrival: nextArrival(cutoffs),
     fx: { effectiveRate: live.effectiveRate, updatedAt: live.updatedAt },
     totals: {
       hours: sum(cutoffs, (c) => c.hoursWorked),
@@ -201,11 +208,11 @@ export async function getViewerDashboard() {
 export async function getViewerCutoff(id: string) {
   const [row, settings] = await Promise.all([
     prisma.cutoff.findFirst({ where: { id, kind: "CONTRACT" }, select: viewerSelect }),
-    prisma.paymentSettings.findUnique({ where: { id: 1 }, select: { fxFeePercent: true } }),
+    prisma.paymentSettings.findUnique({ where: { id: 1 }, select: { fxFeePercent: true, arrivalDays: true } }),
   ]);
   if (!row) return null;
   const live = await getFxQuote(Number(settings?.fxFeePercent ?? DEFAULT_FX_FEE_PERCENT));
-  return toViewerCutoff(row, live);
+  return toViewerCutoff(row, live, settings?.arrivalDays ?? 5);
 }
 
 // ---------- Admin (Kyle) projection ----------
@@ -236,7 +243,7 @@ export async function getAdminDashboard() {
   ]);
 
   const cutoffs: AdminCutoff[] = rows.map((r) => {
-    const base = toViewerCutoff(r, live);
+    const base = toViewerCutoff(r, live, settings.arrivalDays);
     // Incentives are 100% Kyle's: Mom's share is zero.
     const v = r.kind === "INCENTIVE" ? { ...base, netUsd: 0, netPhp: base.netPhp == null ? null : 0 } : base;
     const { effectiveRate } = resolveRate(r, live);
@@ -270,6 +277,7 @@ export async function getAdminDashboard() {
     settings,
     fx: live,
     cutoffs,
+    nextArrival: nextArrival(cutoffs),
     totals: {
       hours: sum(cutoffs, (c) => c.hoursWorked),
       grossUsd: sum(cutoffs, (c) => c.grossUsd),
@@ -286,6 +294,15 @@ export async function getAdminDashboard() {
       keptPhp: sum(received, (c) => c.kylePhp),
     },
   };
+}
+
+/** Cutoffs arriving on the soonest arrival date that's today or later (Manila). */
+function nextArrival<T extends { arrivalDate: string }>(cutoffs: T[]) {
+  const today = manilaToday();
+  const upcoming = cutoffs.filter((c) => c.arrivalDate.slice(0, 10) >= today);
+  if (upcoming.length === 0) return null;
+  const date = upcoming.map((c) => c.arrivalDate).sort()[0];
+  return { date, items: upcoming.filter((c) => c.arrivalDate === date) };
 }
 
 export type GoalProgress = {

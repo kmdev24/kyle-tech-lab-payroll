@@ -91,12 +91,15 @@ export function SettingsForm({ settings, emailConfigured }: { settings: Settings
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <ArrowRightLeft className="h-4 w-4 text-violet-400" /> FX
+              <ArrowRightLeft className="h-4 w-4 text-violet-400" /> FX & timing
             </CardTitle>
           </CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-2">
             <Field label="Stripe FX fee / margin (%)" htmlFor="fxFeePercent" hint="Deducted from the live rate to match UnionBank.">
               <Input id="fxFeePercent" name="fxFeePercent" type="number" step="0.01" min="0" max="20" defaultValue={settings.fxFeePercent} />
+            </Field>
+            <Field label="Bank arrival (days after payout)" htmlFor="arrivalDays" hint="Mercor's transfer lands this many days after the payout date. Mom's salary date is that day.">
+              <Input id="arrivalDays" name="arrivalDays" type="number" step="1" min="0" max="30" defaultValue={settings.arrivalDays} />
             </Field>
           </CardContent>
         </Card>

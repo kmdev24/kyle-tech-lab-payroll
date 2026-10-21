@@ -127,7 +127,7 @@ export function CutoffTable({ cutoffs, payouts }: { cutoffs: AdminCutoff[]; payo
                   {formatDate(c.periodStart, { year: undefined })} – {formatDate(c.periodEnd)}
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  Payout {formatDate(c.payoutDate)}
+                  Payout {formatDate(c.payoutDate)} · arrives {formatDate(c.arrivalDate, { weekday: "short", year: undefined })}
                   {c.kind === "CONTRACT" && ` · ${c.hoursWorked.toFixed(2)} hrs`}
                 </div>
                 {c.notes && <div className="truncate text-xs text-muted-foreground">{c.notes}</div>}
@@ -160,6 +160,7 @@ export function CutoffTable({ cutoffs, payouts }: { cutoffs: AdminCutoff[]; payo
             <TableRow>
               <TableHead>Period</TableHead>
               <TableHead>Payout</TableHead>
+              <TableHead>Arrives</TableHead>
               <TableHead className="text-right">Hours</TableHead>
               <TableHead className="text-right">Gross</TableHead>
               <TableHead className="text-right">Kyle 70%</TableHead>
@@ -178,6 +179,7 @@ export function CutoffTable({ cutoffs, payouts }: { cutoffs: AdminCutoff[]; payo
                   {c.notes && <div className="max-w-[200px] truncate text-xs text-muted-foreground">{c.notes}</div>}
                 </TableCell>
                 <TableCell className="whitespace-nowrap">{formatDate(c.payoutDate)}</TableCell>
+                <TableCell className="whitespace-nowrap">{formatDate(c.arrivalDate, { weekday: "short", year: undefined })}</TableCell>
                 <TableCell className="text-right tabular-nums">{c.kind === "INCENTIVE" ? "–" : c.hoursWorked.toFixed(2)}</TableCell>
                 <Money usd={c.grossUsd} php={c.grossPhp} note={c.earnedUsd != null && c.kind === "CONTRACT" ? "actual" : undefined} />
                 <Money usd={c.kyleUsd} php={c.kylePhp} />
@@ -200,7 +202,7 @@ export function CutoffTable({ cutoffs, payouts }: { cutoffs: AdminCutoff[]; payo
             ))}
             {cutoffs.length === 0 && (
               <TableRow>
-                <TableCell colSpan={9} className="py-10 text-center text-muted-foreground">
+                <TableCell colSpan={10} className="py-10 text-center text-muted-foreground">
                   No cutoffs yet. Add this week&apos;s above.
                 </TableCell>
               </TableRow>

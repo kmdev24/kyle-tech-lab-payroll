@@ -40,7 +40,7 @@ export async function sendPayslipEmail(opts: {
           <tr><td style="padding:6px 0;color:#64748b">Rate</td><td style="text-align:right">${formatUsd(cutoff.rateUsd)}/hr</td></tr>`
           }
           <tr><td style="padding:6px 0;color:#64748b">Net Payout</td><td style="text-align:right"><b>${amount}</b></td></tr>
-          <tr><td style="padding:6px 0;color:#64748b">Payout Date</td><td style="text-align:right">${formatDate(cutoff.payoutDate)}</td></tr>
+          <tr><td style="padding:6px 0;color:#64748b">Salary Date</td><td style="text-align:right">${formatDate(cutoff.arrivalDate, { weekday: "short" })}</td></tr>
         </table>
         <p>Your payslip PDF is attached. It is password protected with the PIN you agreed on.</p>
       </div>`,
