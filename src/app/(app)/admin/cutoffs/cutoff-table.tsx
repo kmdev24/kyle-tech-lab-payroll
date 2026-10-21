@@ -72,8 +72,17 @@ export function CutoffTable({ cutoffs, payouts }: { cutoffs: AdminCutoff[]; payo
                 <Money usd={c.kyleUsd} php={c.kylePhp} />
                 <Money usd={c.netUsd} php={c.netPhp} />
                 <TableCell className="whitespace-nowrap text-xs text-muted-foreground tabular-nums">
-                  {c.fxMidRate ? `₱${c.fxMidRate.toFixed(3)}` : "–"} −{c.fxFeePercent}%
-                  <div>{c.fxLocked ? "locked" : "live"}</div>
+                  {c.fxSource === "receipt" ? (
+                    <>
+                      ₱{c.stripeRate!.toFixed(4)}
+                      <div className="text-emerald-300">Stripe receipt</div>
+                    </>
+                  ) : (
+                    <>
+                      {c.fxMidRate ? `₱${c.fxMidRate.toFixed(3)}` : "–"} −{c.fxFeePercent}%
+                      <div>{c.fxSource === "payout-date" ? "payout date" : "live estimate"}</div>
+                    </>
+                  )}
                 </TableCell>
                 <TableCell>
                   <StatusBadge status={c.status} />

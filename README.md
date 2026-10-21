@@ -21,7 +21,7 @@ The 70/30 split is enforced on the server, not by hiding things in the UI:
 | $30.00/hr base, $9.00/hr Mom (30%) | `src/lib/constants.ts`, stored per cutoff |
 | Cutoff Saturday → Friday, payout following Wednesday (+5 days) | `src/lib/cutoff.ts` |
 | Live USD→PHP from open.er-api.com (cached 1h) minus Stripe FX fee (default 1.0%, calibrated from a real Stripe payout) | `src/lib/fx.ts` |
-| FX rate is **locked** when a cutoff is marked Received; pending ones show a live estimate | `markReceived` in `src/app/(app)/admin/actions.ts` |
+| Each cutoff uses the USD→PHP rate on its **payout date** (locked automatically once published; future ones show a live estimate). An exact Stripe receipt rate can be entered per cutoff and overrides it | `lockPayoutDateRates` in `src/lib/data.ts` |
 | House fund = Kyle's 70% PHP from received cutoffs, goal ₱3,000,000 (editable) | `getAdminDashboard` |
 
 ## Marking a cutoff "Received"

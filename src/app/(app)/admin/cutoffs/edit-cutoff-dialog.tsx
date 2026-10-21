@@ -48,6 +48,23 @@ export function EditCutoffDialog({ cutoff, onClose }: { cutoff: AdminCutoff; onC
           />
         </div>
         <div className="space-y-2">
+          <Label htmlFor="edit-stripe">Stripe rate from receipt (optional)</Label>
+          <Input
+            id="edit-stripe"
+            name="stripeRate"
+            type="number"
+            step="0.0001"
+            min="1"
+            inputMode="decimal"
+            defaultValue={cutoff.stripeRate ?? ""}
+            placeholder="e.g. 62.3271"
+          />
+          <p className="text-xs text-muted-foreground">
+            The &quot;Exchange rate&quot; on the Stripe payment. Used exactly, with no extra fee. Leave blank to use the
+            payout date&apos;s rate minus the FX fee.
+          </p>
+        </div>
+        <div className="space-y-2">
           <Label htmlFor="edit-notes">Notes</Label>
           <Input id="edit-notes" name="notes" defaultValue={cutoff.notes ?? ""} maxLength={500} />
         </div>

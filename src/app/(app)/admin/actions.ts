@@ -4,8 +4,8 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
-import { cutoffWeekFor } from "@/lib/cutoff";
-import { fetchUsdPhpRate } from "@/lib/fx";
+import { cutoffWeekFor, manilaToday, toDateInput } from "@/lib/cutoff";
+import { fetchHistoricalUsdPhp, fetchUsdPhpRate } from "@/lib/fx";
 import { getSettings } from "@/lib/data";
 import { emailPayslip } from "@/lib/payslip";
 import { validateQrPh } from "@/lib/qrph";
@@ -84,6 +84,10 @@ export async function updateCutoff(_: ActionResult | null, form: FormData): Prom
   if (!existing) return { ok: false, message: "Cutoff not found" };
   const hours = z.preprocess((v) => (v === "" || v == null ? 0 : v), hoursField).safeParse(form.get("hoursWorked"));
   const earned = optionalUsd.safeParse(form.get("earnedUsd"));
+  const stripeRate = z
+    .preprocess((v) => (v === "" || v == null ? undefined : v), z.coerce.number().min(1).max(1000).optional())
+    .safeParse(form.get("stripeRate"));
+  if (!stripeRate.success) return { ok: false, message: "Invalid Stripe rate" };
   if (!hours.success) return { ok: false, message: "Invalid hours" };
   if (!earned.success) return { ok: false, message: "Invalid earned amount" };
   if (existing.kind === "INCENTIVE" && earned.data == null) return { ok: false, message: "Enter the incentive amount (USD)" };
@@ -93,6 +97,7 @@ export async function updateCutoff(_: ActionResult | null, form: FormData): Prom
     data: {
       hoursWorked: existing.kind === "INCENTIVE" ? 0 : hours.data,
       ...earnedFields(earned.data, existing.kind),
+      stripeRate: stripeRate.data ?? null,
       notes: notes || null,
     },
   });
@@ -110,20 +115,28 @@ export async function deleteCutoff(id: string): Promise<ActionResult> {
 /** Marks a cutoff RECEIVED, locks the FX rate, and emails Mom's encrypted payslip (contracts only). */
 export async function markReceived(id: string): Promise<ActionResult> {
   await requireAdmin();
-  const cutoff = await prisma.cutoff.findUnique({ where: { id }, select: { kind: true } });
+  const cutoff = await prisma.cutoff.findUnique({
+    where: { id },
+    select: { kind: true, payoutDate: true, fxRate: true, stripeRate: true },
+  });
   if (!cutoff) return { ok: false, message: "Cutoff not found" };
   const settings = await getSettings();
-  const live = await fetchUsdPhpRate();
-  if (!live) return { ok: false, message: "Couldn't fetch the live USD→PHP rate. Try again in a minute." };
+
+  // Keep a rate that's already locked (receipt or payout date). Otherwise use the
+  // payout date's rate if it's published, falling back to today's live rate.
+  let fx = {};
+  if (cutoff.fxRate == null && cutoff.stripeRate == null) {
+    const payoutDay = toDateInput(cutoff.payoutDate);
+    const rate =
+      (payoutDay <= manilaToday() ? await fetchHistoricalUsdPhp(payoutDay) : null) ??
+      (await fetchUsdPhpRate())?.rate;
+    if (rate == null) return { ok: false, message: "Couldn't fetch the USD→PHP rate. Try again in a minute." };
+    fx = { fxRate: rate, fxFeePercent: settings.fxFeePercent };
+  }
 
   await prisma.cutoff.update({
     where: { id },
-    data: {
-      status: "RECEIVED",
-      receivedAt: new Date(),
-      fxRate: live.rate,
-      fxFeePercent: settings.fxFeePercent,
-    },
+    data: { status: "RECEIVED", receivedAt: new Date(), ...fx },
   });
 
   if (cutoff.kind === "INCENTIVE") {
@@ -142,7 +155,9 @@ export async function markPending(id: string): Promise<ActionResult> {
   await requireAdmin();
   await prisma.cutoff.update({
     where: { id },
-    data: { status: "PENDING", receivedAt: null, fxRate: null, fxFeePercent: null, emailSentAt: null },
+    // The payout-date rate stays locked (it's a fact about that date); only the
+    // received status is undone.
+    data: { status: "PENDING", receivedAt: null, emailSentAt: null },
   });
   refresh();
   return { ok: true, message: "Moved back to pending" };

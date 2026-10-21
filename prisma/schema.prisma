@@ -53,8 +53,11 @@ model Cutoff {
   // Mom's 30% of earnedUsd, precomputed on save so viewer queries never read earnedUsd.
   viewerEarnedUsd Decimal?     @db.Decimal(10, 2)
   status          CutoffStatus @default(PENDING)
-  // FX is locked when the cutoff is marked RECEIVED; null means "use live rate".
+  // Mid-market USD->PHP for the payout date. Locked automatically once the payout
+  // date's rate is published (or when marked RECEIVED); null means "use live rate".
   fxRate          Decimal?     @db.Decimal(12, 6)
+  // Exact rate from the Stripe receipt (fee already included). Overrides fxRate.
+  stripeRate      Decimal?     @db.Decimal(12, 6)
   fxFeePercent    Decimal?     @db.Decimal(5, 2)
   receivedAt      DateTime?
   emailSentAt     DateTime?

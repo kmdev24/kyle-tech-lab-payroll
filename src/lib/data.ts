@@ -11,7 +11,8 @@
  */
 import type { CutoffStatus, EntryKind } from "@prisma/client";
 import { prisma } from "./prisma";
-import { applyFee, getFxQuote, type FxQuote } from "./fx";
+import { applyFee, fetchHistoricalUsdPhp, getFxQuote, type FxQuote } from "./fx";
+import { manilaToday, toDateInput } from "./cutoff";
 import { DEFAULT_FX_FEE_PERCENT } from "./constants";
 import { round2 } from "./utils";
 
@@ -47,16 +48,51 @@ export type PaymentDestination = Awaited<ReturnType<typeof getPaymentDestination
 
 // ---------- FX resolution ----------
 
-/** Locked rate for received cutoffs; live rate (with current fee) for pending ones. */
+export type FxSource = "receipt" | "payout-date" | "live";
+
+/**
+ * Rate used for a cutoff, in order: the exact Stripe receipt rate, the locked
+ * payout-date rate (minus the fee), or today's live rate as an estimate.
+ */
 function resolveRate(
-  row: { fxRate: unknown; fxFeePercent: unknown },
+  row: { fxRate: unknown; fxFeePercent: unknown; stripeRate: unknown },
   live: FxQuote,
-): { effectiveRate: number | null; locked: boolean } {
+): { effectiveRate: number | null; locked: boolean; source: FxSource } {
+  if (row.stripeRate != null) return { effectiveRate: Number(row.stripeRate), locked: true, source: "receipt" };
   if (row.fxRate != null) {
     const fee = row.fxFeePercent != null ? Number(row.fxFeePercent) : live.feePercent;
-    return { effectiveRate: applyFee(Number(row.fxRate), fee), locked: true };
+    return { effectiveRate: applyFee(Number(row.fxRate), fee), locked: true, source: "payout-date" };
   }
-  return { effectiveRate: live.effectiveRate, locked: false };
+  return { effectiveRate: live.effectiveRate, locked: false, source: "live" };
+}
+
+/**
+ * Locks the payout-date rate on every cutoff whose payout date has arrived and
+ * has no rate yet. Future payouts keep showing the live rate as an estimate.
+ */
+export async function lockPayoutDateRates() {
+  const due = await prisma.cutoff.findMany({
+    where: { fxRate: null, stripeRate: null, payoutDate: { lte: new Date(`${manilaToday()}T00:00:00Z`) } },
+    select: { id: true, payoutDate: true },
+    take: 50,
+  });
+  if (due.length === 0) return;
+  const settings = await prisma.paymentSettings.findUnique({ where: { id: 1 }, select: { fxFeePercent: true } });
+  const fee = Number(settings?.fxFeePercent ?? DEFAULT_FX_FEE_PERCENT);
+  const byDate = new Map<string, Promise<number | null>>();
+  await Promise.all(
+    due.map(async (c) => {
+      const date = toDateInput(c.payoutDate);
+      if (!byDate.has(date)) byDate.set(date, fetchHistoricalUsdPhp(date));
+      const rate = await byDate.get(date)!;
+      if (rate != null) {
+        await prisma.cutoff.updateMany({
+          where: { id: c.id, fxRate: null, stripeRate: null },
+          data: { fxRate: rate, fxFeePercent: fee },
+        });
+      }
+    }),
+  );
 }
 
 const toPhp = (usd: number, rate: number | null) => (rate == null ? null : round2(usd * rate));
@@ -75,6 +111,7 @@ const viewerSelect = {
   status: true,
   fxRate: true,
   fxFeePercent: true,
+  stripeRate: true,
   receivedAt: true,
 } as const;
 
@@ -89,6 +126,7 @@ export type ViewerCutoff = {
   netUsd: number;
   netPhp: number | null;
   fxLocked: boolean;
+  fxSource: FxSource;
   status: CutoffStatus;
 };
 
@@ -105,13 +143,14 @@ function toViewerCutoff(
     status: CutoffStatus;
     fxRate: unknown;
     fxFeePercent: unknown;
+    stripeRate: unknown;
   },
   live: FxQuote,
 ): ViewerCutoff {
   const hours = Number(row.hoursWorked);
   const rate = Number(row.viewerRate);
   const netUsd = row.viewerEarnedUsd != null ? Number(row.viewerEarnedUsd) : round2(hours * rate);
-  const { effectiveRate, locked } = resolveRate(row, live);
+  const { effectiveRate, locked, source } = resolveRate(row, live);
   return {
     id: row.id,
     kind: row.kind,
@@ -123,11 +162,13 @@ function toViewerCutoff(
     netUsd,
     netPhp: toPhp(netUsd, effectiveRate),
     fxLocked: locked,
+    fxSource: source,
     status: row.status,
   };
 }
 
 export async function getViewerDashboard() {
+  await lockPayoutDateRates();
   const [settings, rows] = await Promise.all([
     prisma.paymentSettings.findUnique({ where: { id: 1 }, select: { fxFeePercent: true } }),
     // Incentives are 100% Kyle's, so Mom's queries only ever see contract weeks.
@@ -179,12 +220,15 @@ export type AdminCutoff = ViewerCutoff & {
   kylePhp: number | null;
   fxMidRate: number | null;
   fxFeePercent: number;
+  /** Exact Stripe receipt rate, if entered. */
+  stripeRate: number | null;
   emailSentAt: string | null;
   receivedAt: string | null;
   notes: string | null;
 };
 
 export async function getAdminDashboard() {
+  await lockPayoutDateRates();
   const settings = await getSettings();
   const [rows, live] = await Promise.all([
     prisma.cutoff.findMany({ orderBy: { periodStart: "desc" } }),
@@ -210,6 +254,7 @@ export async function getAdminDashboard() {
       kylePhp: toPhp(kyleUsd, effectiveRate),
       fxMidRate: r.fxRate != null ? Number(r.fxRate) : live.midRate,
       fxFeePercent: r.fxFeePercent != null ? Number(r.fxFeePercent) : live.feePercent,
+      stripeRate: r.stripeRate != null ? Number(r.stripeRate) : null,
       emailSentAt: r.emailSentAt?.toISOString() ?? null,
       receivedAt: r.receivedAt?.toISOString() ?? null,
       notes: r.notes,

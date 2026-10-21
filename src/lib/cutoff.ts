@@ -25,3 +25,8 @@ export function currentCutoffWeek(now = new Date()) {
 export function toDateInput(d: Date) {
   return d.toISOString().slice(0, 10);
 }
+
+/** Today's date in Manila as YYYY-MM-DD. */
+export function manilaToday(now = new Date()) {
+  return toDateInput(new Date(now.getTime() + 8 * 60 * 60 * 1000));
+}

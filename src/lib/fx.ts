@@ -43,3 +43,34 @@ export async function getFxQuote(feePercent = DEFAULT_FX_FEE_PERCENT): Promise<F
     updatedAt: live?.updatedAt ?? null,
   };
 }
+
+/**
+ * Mid-market USD -> PHP for a past date (YYYY-MM-DD). Historical rates never
+ * change, and callers store the result. Returns null if unavailable
+ * (e.g. the date is today and hasn't been published yet).
+ */
+export async function fetchHistoricalUsdPhp(date: string): Promise<number | null> {
+  const sources: { url: string; pick: (j: any) => unknown }[] = [
+    // Daily snapshots (fawazahmed0/exchange-api), published around 00:00 UTC.
+    {
+      url: `https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@${date}/v1/currencies/usd.min.json`,
+      pick: (j) => j?.usd?.php,
+    },
+    { url: `https://${date}.currency-api.pages.dev/v1/currencies/usd.min.json`, pick: (j) => j?.usd?.php },
+    // European Central Bank reference rates via Frankfurter (business days only).
+    { url: `https://api.frankfurter.dev/v1/${date}?base=USD&symbols=PHP`, pick: (j) => j?.rates?.PHP },
+  ];
+  for (const s of sources) {
+    try {
+      // No HTTP caching: once found, the rate is locked into the database anyway,
+      // and a "not published yet" answer for today must not be cached.
+      const res = await fetch(s.url, { cache: "no-store" });
+      if (!res.ok) continue;
+      const rate = s.pick(await res.json());
+      if (typeof rate === "number" && rate > 0) return rate;
+    } catch {
+      // try the next source
+    }
+  }
+  return null;
+}
