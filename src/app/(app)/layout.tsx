@@ -6,7 +6,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <>
       <AppHeader name={user.name} role={user.role} />
-      <main className="container py-8">{children}</main>
+      <main className={user.role === "ADMIN" ? "container py-6 pb-24 sm:py-8 md:pb-8" : "container py-6 sm:py-8"}>
+        {children}
+      </main>
     </>
   );
 }

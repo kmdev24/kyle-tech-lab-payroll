@@ -48,6 +48,39 @@ export function ViewerDashboard({ name, data }: { name: string; data: Data }) {
           <CardTitle>My cutoffs</CardTitle>
         </CardHeader>
         <CardContent>
+          <div className="space-y-3 md:hidden">
+            {cutoffs.map((c) => (
+              <div key={c.id} className="rounded-lg border p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium">
+                      {formatDate(c.periodStart, { year: undefined })} – {formatDate(c.periodEnd)}
+                    </div>
+                    <div className="text-xs text-muted-foreground">Payout {formatDate(c.payoutDate)}</div>
+                  </div>
+                  <StatusBadge status={c.status} />
+                </div>
+                <div className="mt-2 flex items-end justify-between gap-2">
+                  <div className="text-xs text-muted-foreground tabular-nums">
+                    {c.hoursWorked.toFixed(2)} hrs × {formatUsd(c.rateUsd)}/hr = {formatUsd(c.netUsd)}
+                  </div>
+                  <div className="text-right font-semibold tabular-nums">
+                    {c.netPhp != null ? formatPhp(c.netPhp) : "–"}
+                    {!c.fxLocked && <div className="text-xs font-normal text-muted-foreground">estimate</div>}
+                  </div>
+                </div>
+                {c.status === "RECEIVED" && (
+                  <Button variant="outline" size="sm" className="mt-3 w-full" asChild>
+                    <a href={`/api/payslip/${c.id}`}>
+                      <Download /> Payslip
+                    </a>
+                  </Button>
+                )}
+              </div>
+            ))}
+            {cutoffs.length === 0 && <p className="py-6 text-center text-sm text-muted-foreground">No cutoffs yet.</p>}
+          </div>
+          <div className="hidden md:block">
           <Table>
             <TableHeader>
               <TableRow>
@@ -99,6 +132,7 @@ export function ViewerDashboard({ name, data }: { name: string; data: Data }) {
               )}
             </TableBody>
           </Table>
+          </div>
         </CardContent>
       </Card>
     </div>

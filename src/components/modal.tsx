@@ -16,7 +16,7 @@ export function Modal({ title, onClose, children }: { title: string; onClose: ()
       <div
         role="dialog"
         aria-modal="true"
-        className="relative w-full max-w-md rounded-xl border bg-card p-6 shadow-2xl"
+        className="relative max-h-[90vh] w-full max-w-md overflow-y-auto rounded-xl border bg-card p-5 shadow-2xl sm:p-6"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">
