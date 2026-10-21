@@ -1,0 +1,73 @@
+// KYLE TECH LAB payroll - TiDB Cloud Serverless (MySQL wire protocol)
+// DATABASE_URL must end with ?sslaccept=strict (see .env.example).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  VIEWER
+}
+
+enum CutoffStatus {
+  PENDING
+  RECEIVED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  passwordHash String
+  role         Role     @default(VIEWER)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// One row per Saturday-to-Friday week.
+model Cutoff {
+  id           String       @id @default(cuid())
+  periodStart  DateTime     @db.Date // Saturday
+  periodEnd    DateTime     @db.Date // Friday
+  payoutDate   DateTime     @db.Date // following Wednesday
+  hoursWorked  Decimal      @db.Decimal(8, 2)
+  // Admin-only figures. Never selected for the VIEWER role.
+  baseRate     Decimal      @default(30.00) @db.Decimal(8, 2)
+  // The only rate the VIEWER role can read ($9.00 = 30% of $30.00).
+  viewerRate   Decimal      @default(9.00) @db.Decimal(8, 2)
+  status       CutoffStatus @default(PENDING)
+  // FX is locked when the cutoff is marked RECEIVED; null means "use live rate".
+  fxRate       Decimal?     @db.Decimal(12, 6)
+  fxFeePercent Decimal?     @db.Decimal(5, 2)
+  receivedAt   DateTime?
+  emailSentAt  DateTime?
+  notes        String?      @db.Text
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@unique([periodStart])
+  @@index([status])
+}
+
+// Singleton row (id = 1)
+model PaymentSettings {
+  id               Int      @id @default(1)
+  bankName         String   @default("GoTyme")
+  accountName      String   @default("")
+  accountNumber    String   @default("")
+  recipientEmail   String   @default("")
+  pdfPassword      String   @default("")
+  // Stripe FX conversion fee/margin deducted from the live rate (1.5 = 1.5%)
+  fxFeePercent     Decimal  @default(1.50) @db.Decimal(5, 2)
+  houseFundGoalPhp Decimal  @default(3000000) @db.Decimal(14, 2)
+  // Optional: the static QR Ph / InstaPay string from Mom's own "Receive money" QR.
+  // When present, the payout QR is generated from it with the exact amount filled in.
+  qrPhPayload      String?  @db.Text
+  updatedAt        DateTime @updatedAt
+}

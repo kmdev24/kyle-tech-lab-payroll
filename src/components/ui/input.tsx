@@ -1,0 +1,45 @@
+import * as React from "react";
+import { cn } from "@/lib/utils";
+
+export const Input = React.forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>(
+  ({ className, type, ...props }, ref) => (
+    <input
+      type={type}
+      className={cn(
+        "flex h-10 w-full rounded-md border border-input bg-background/50 px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 [color-scheme:dark]",
+        className,
+      )}
+      ref={ref}
+      {...props}
+    />
+  ),
+);
+Input.displayName = "Input";
+
+export const Textarea = React.forwardRef<HTMLTextAreaElement, React.TextareaHTMLAttributes<HTMLTextAreaElement>>(
+  ({ className, ...props }, ref) => (
+    <textarea
+      className={cn(
+        "flex min-h-[80px] w-full rounded-md border border-input bg-background/50 px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        className,
+      )}
+      ref={ref}
+      {...props}
+    />
+  ),
+);
+Textarea.displayName = "Textarea";
+
+export const NativeSelect = React.forwardRef<HTMLSelectElement, React.SelectHTMLAttributes<HTMLSelectElement>>(
+  ({ className, ...props }, ref) => (
+    <select
+      className={cn(
+        "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        className,
+      )}
+      ref={ref}
+      {...props}
+    />
+  ),
+);
+NativeSelect.displayName = "NativeSelect";
