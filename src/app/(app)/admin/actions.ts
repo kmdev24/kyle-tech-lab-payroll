@@ -162,7 +162,6 @@ const settingsSchema = z.object({
   recipientEmail: z.union([z.literal(""), z.string().trim().email()]),
   pdfPassword: z.string().max(64),
   fxFeePercent: z.coerce.number().min(0).max(20),
-  houseFundGoalPhp: z.coerce.number().min(0),
   qrPhPayload: z.string().trim().max(1000).optional(),
 });
 
@@ -182,4 +181,34 @@ export async function saveSettings(_: ActionResult | null, form: FormData): Prom
   revalidatePath("/admin/settings");
   refresh();
   return { ok: true, message: "Settings saved" };
+}
+
+const goalSchema = z.object({
+  name: z.string().trim().min(1, "Name the goal").max(80),
+  targetPhp: z.coerce.number().positive("Target must be more than 0").max(1_000_000_000).transform(round2),
+  startingPhp: z.preprocess((v) => (v === "" || v == null ? 0 : v), z.coerce.number().min(0).transform(round2)),
+  priority: z.preprocess((v) => (v === "" || v == null ? 1 : v), z.coerce.number().int().min(1).max(999)),
+});
+
+function refreshGoals() {
+  revalidatePath("/dashboard");
+  revalidatePath("/admin/goals");
+}
+
+export async function saveGoal(_: ActionResult | null, form: FormData): Promise<ActionResult> {
+  await requireAdmin();
+  const id = String(form.get("id") ?? "");
+  const parsed = goalSchema.safeParse(Object.fromEntries(form));
+  if (!parsed.success) return { ok: false, message: parsed.error.issues[0].message };
+  if (id) await prisma.savingsGoal.update({ where: { id }, data: parsed.data });
+  else await prisma.savingsGoal.create({ data: parsed.data });
+  refreshGoals();
+  return { ok: true, message: id ? "Goal updated" : "Goal added" };
+}
+
+export async function deleteGoal(id: string): Promise<ActionResult> {
+  await requireAdmin();
+  await prisma.savingsGoal.delete({ where: { id } });
+  refreshGoals();
+  return { ok: true, message: "Goal deleted" };
 }

@@ -12,7 +12,7 @@
 import type { CutoffStatus, EntryKind } from "@prisma/client";
 import { prisma } from "./prisma";
 import { applyFee, getFxQuote, type FxQuote } from "./fx";
-import { DEFAULT_FX_FEE_PERCENT, HOUSE_FUND_GOAL_PHP } from "./constants";
+import { DEFAULT_FX_FEE_PERCENT } from "./constants";
 import { round2 } from "./utils";
 
 // ---------- Settings ----------
@@ -30,7 +30,6 @@ export async function getSettings() {
     recipientEmail: s.recipientEmail,
     pdfPassword: s.pdfPassword,
     fxFeePercent: Number(s.fxFeePercent ?? DEFAULT_FX_FEE_PERCENT),
-    houseFundGoalPhp: Number(s.houseFundGoalPhp ?? HOUSE_FUND_GOAL_PHP),
     qrPhPayload: s.qrPhPayload ?? "",
   };
 }
@@ -238,8 +237,44 @@ export async function getAdminDashboard() {
       pendingGrossPhp: sum(pending, (c) => c.grossPhp),
       receivedCount: received.length,
       pendingCount: pending.length,
-      // House fund = Kyle's 70% share (PHP) from cutoffs already received.
-      houseFundPhp: sum(received, (c) => c.kylePhp),
+      // Kyle's share (PHP) from entries already received: this is what fills savings goals.
+      keptPhp: sum(received, (c) => c.kylePhp),
     },
   };
+}
+
+export type GoalProgress = {
+  id: string;
+  name: string;
+  priority: number;
+  targetPhp: number;
+  startingPhp: number;
+  /** startingPhp + Kyle's received share allocated to this goal. */
+  savedPhp: number;
+  percent: number;
+};
+
+/**
+ * Kyle's received PHP share fills goals in priority order (lowest number first):
+ * each goal takes what it still needs, and the rest flows to the next one.
+ */
+export async function getSavingsGoals(keptPhp: number): Promise<GoalProgress[]> {
+  const goals = await prisma.savingsGoal.findMany({ orderBy: [{ priority: "asc" }, { createdAt: "asc" }] });
+  let pool = keptPhp;
+  return goals.map((g) => {
+    const target = Number(g.targetPhp);
+    const starting = Number(g.startingPhp);
+    const take = Math.max(0, Math.min(pool, target - starting));
+    pool -= take;
+    const saved = round2(starting + take);
+    return {
+      id: g.id,
+      name: g.name,
+      priority: g.priority,
+      targetPhp: target,
+      startingPhp: starting,
+      savedPhp: saved,
+      percent: target > 0 ? Math.min(100, (saved / target) * 100) : 0,
+    };
+  });
 }

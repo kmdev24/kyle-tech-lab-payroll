@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowRight, Banknote, Clock, Home, PiggyBank, TrendingUp, User, Wallet } from "lucide-react";
-import type { getAdminDashboard } from "@/lib/data";
+import type { GoalProgress, getAdminDashboard } from "@/lib/data";
 import { StatCard } from "@/components/stat-card";
 import { StatusBadge } from "@/components/status-badge";
 import { Badge } from "@/components/ui/badge";
@@ -13,10 +13,8 @@ import { FxCard } from "@/components/fx-card";
 
 type Data = Awaited<ReturnType<typeof getAdminDashboard>>;
 
-export function AdminDashboard({ data }: { data: Data }) {
-  const { totals, fx, settings, cutoffs } = data;
-  const goal = settings.houseFundGoalPhp;
-  const pct = goal > 0 ? Math.min(100, (totals.houseFundPhp / goal) * 100) : 0;
+export function AdminDashboard({ data, goals }: { data: Data; goals: GoalProgress[] }) {
+  const { totals, fx, cutoffs } = data;
 
   return (
     <div className="space-y-6">
@@ -52,21 +50,39 @@ export function AdminDashboard({ data }: { data: Data }) {
 
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2">
-              <Home className="h-4 w-4 text-violet-400" /> House Fund
-            </CardTitle>
-            <CardDescription>Kyle&apos;s 70% share from received cutoffs</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex items-end justify-between">
-              <span className="text-3xl font-bold tabular-nums">{formatPhp(totals.houseFundPhp)}</span>
-              <span className="text-sm text-muted-foreground tabular-nums">of {formatPhp(goal)}</span>
+          <CardHeader className="flex-row items-start justify-between space-y-0 pb-3">
+            <div className="space-y-1.5">
+              <CardTitle className="flex items-center gap-2">
+                <Home className="h-4 w-4 text-violet-400" /> Savings goals
+              </CardTitle>
+              <CardDescription>
+                Your received share ({formatPhp(totals.keptPhp)}) fills goals in priority order
+              </CardDescription>
             </div>
-            <Progress value={pct} />
-            <p className="text-xs text-muted-foreground">
-              {pct.toFixed(1)}% · {formatPhp(Math.max(0, goal - totals.houseFundPhp))} to go
-            </p>
+            <Button variant="outline" size="sm" asChild>
+              <Link href="/admin/goals">Manage</Link>
+            </Button>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            {goals.map((g) => (
+              <div key={g.id} className="space-y-2">
+                <div className="flex items-end justify-between gap-3">
+                  <span className="font-medium">{g.name}</span>
+                  <span className="text-sm text-muted-foreground tabular-nums">
+                    <span className="font-semibold text-foreground">{formatPhp(g.savedPhp)}</span> of {formatPhp(g.targetPhp)}
+                  </span>
+                </div>
+                <Progress value={g.percent} />
+                <p className="text-xs text-muted-foreground">
+                  {g.percent.toFixed(1)}% · {g.percent >= 100 ? "Reached 🎉" : `${formatPhp(Math.max(0, g.targetPhp - g.savedPhp))} to go`}
+                </p>
+              </div>
+            ))}
+            {goals.length === 0 && (
+              <p className="text-sm text-muted-foreground">
+                No goals yet. <Link href="/admin/goals" className="text-violet-300 underline">Add one</Link>.
+              </p>
+            )}
           </CardContent>
         </Card>
         <FxCard midRate={fx.midRate} feePercent={fx.feePercent} effectiveRate={fx.effectiveRate} updatedAt={fx.updatedAt} />

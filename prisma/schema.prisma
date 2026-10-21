@@ -76,9 +76,24 @@ model PaymentSettings {
   pdfPassword      String   @default("")
   // Stripe FX conversion fee/margin deducted from the live rate (1.5 = 1.5%)
   fxFeePercent     Decimal  @default(1.50) @db.Decimal(5, 2)
+  // Legacy single goal; superseded by SavingsGoal (used once to seed "House Fund").
   houseFundGoalPhp Decimal  @default(3000000) @db.Decimal(14, 2)
+  goalsInitialized Boolean  @default(false)
   // Optional: the static QR Ph / InstaPay string from Mom's own "Receive money" QR.
   // When present, the payout QR is generated from it with the exact amount filled in.
   qrPhPayload      String?  @db.Text
   updatedAt        DateTime @updatedAt
+}
+
+// Admin-only savings goals. Kyle's received PHP share fills them in priority order.
+model SavingsGoal {
+  id          String   @id @default(cuid())
+  name        String
+  targetPhp   Decimal  @db.Decimal(14, 2)
+  // Money already saved elsewhere before using the app.
+  startingPhp Decimal  @default(0) @db.Decimal(14, 2)
+  // Lower number = filled first.
+  priority    Int      @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }

@@ -67,6 +67,18 @@ async function main() {
     },
   });
 
+  // One-time: turn the old single "house fund" setting into a savings goal.
+  // The flag makes sure deleting every goal later doesn't bring it back on the next deploy.
+  const settings = await prisma.paymentSettings.findUniqueOrThrow({ where: { id: 1 } });
+  if (!settings.goalsInitialized) {
+    if ((await prisma.savingsGoal.count()) === 0) {
+      await prisma.savingsGoal.create({
+        data: { name: "House Fund", targetPhp: settings.houseFundGoalPhp, priority: 1 },
+      });
+    }
+    await prisma.paymentSettings.update({ where: { id: 1 }, data: { goalsInitialized: true } });
+  }
+
   // Two sample weeks (opt-in): last week (received) and this week (pending).
   if (process.env.SEED_SAMPLE_CUTOFFS === "true") {
     const now = new Date();

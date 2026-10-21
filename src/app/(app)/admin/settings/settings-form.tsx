@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useEffect } from "react";
-import { ArrowRightLeft, FileLock2, Landmark, Loader2, Save, Target } from "lucide-react";
+import { ArrowRightLeft, FileLock2, Landmark, Loader2, Save } from "lucide-react";
 import { toast } from "sonner";
 import type { Settings } from "@/lib/data";
 import { BANK_OPTIONS } from "@/lib/constants";
@@ -82,26 +82,12 @@ export function SettingsForm({ settings, emailConfigured }: { settings: Settings
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <ArrowRightLeft className="h-4 w-4 text-violet-400" /> FX & goals
+              <ArrowRightLeft className="h-4 w-4 text-violet-400" /> FX
             </CardTitle>
           </CardHeader>
           <CardContent className="grid gap-4 sm:grid-cols-2">
             <Field label="Stripe FX fee / margin (%)" htmlFor="fxFeePercent" hint="Deducted from the live rate to match UnionBank.">
               <Input id="fxFeePercent" name="fxFeePercent" type="number" step="0.01" min="0" max="20" defaultValue={settings.fxFeePercent} />
-            </Field>
-            <Field label="House fund goal (PHP)" htmlFor="houseFundGoalPhp">
-              <div className="relative">
-                <Target className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="houseFundGoalPhp"
-                  name="houseFundGoalPhp"
-                  type="number"
-                  step="1000"
-                  min="0"
-                  defaultValue={settings.houseFundGoalPhp}
-                  className="pl-9"
-                />
-              </div>
             </Field>
           </CardContent>
         </Card>

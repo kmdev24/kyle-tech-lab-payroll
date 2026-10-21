@@ -10,6 +10,7 @@ export function AppHeader({ name, role }: { name: string; role: Role }) {
       ? [
           { href: "/dashboard", label: "Dashboard" },
           { href: "/admin/cutoffs", label: "Cutoffs" },
+          { href: "/admin/goals", label: "Goals" },
           { href: "/admin/settings", label: "Settings" },
         ]
       : [{ href: "/dashboard", label: "My Earnings" }];
