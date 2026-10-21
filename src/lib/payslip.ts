@@ -16,7 +16,7 @@ export async function generatePayslip(cutoffId: string) {
     prisma.paymentSettings.findUnique({ where: { id: 1 }, select: { pdfPassword: true, recipientEmail: true } }),
     viewerName(),
   ]);
-  if (!cutoff) throw new Error("Cutoff not found");
+  if (!cutoff) throw new Error("No payslip for this entry (incentives are not shared)");
   const pdf = await buildPayslipPdf({
     cutoff,
     destination,

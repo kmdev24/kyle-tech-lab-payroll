@@ -93,7 +93,9 @@ export function CutoffTable({ cutoffs, payouts }: { cutoffs: AdminCutoff[]; payo
                           run(
                             `${c.id}:recv`,
                             () => markReceived(c.id),
-                            "Mark as received? This locks today's FX rate and emails Mom's payslip.",
+                            c.kind === "INCENTIVE"
+                              ? "Mark this incentive as received? It's 100% yours; nothing is sent to Mom."
+                              : "Mark as received? This locks today's FX rate and emails Mom's payslip.",
                           )
                         }
                       >
@@ -107,6 +109,7 @@ export function CutoffTable({ cutoffs, payouts }: { cutoffs: AdminCutoff[]; payo
                             <Send /> Payout via UnionBank
                           </Button>
                         )}
+                        {c.kind === "CONTRACT" && (
                         <Button
                           size="icon"
                           variant="ghost"
@@ -116,6 +119,7 @@ export function CutoffTable({ cutoffs, payouts }: { cutoffs: AdminCutoff[]; payo
                         >
                           {busy === `${c.id}:mail` ? <Loader2 className="animate-spin" /> : <Mail />}
                         </Button>
+                        )}
                         <Button
                           size="icon"
                           variant="ghost"
@@ -129,11 +133,13 @@ export function CutoffTable({ cutoffs, payouts }: { cutoffs: AdminCutoff[]; payo
                         </Button>
                       </>
                     )}
-                    <Button size="icon" variant="ghost" title="Download payslip (preview)" asChild>
-                      <a href={`/api/payslip/${c.id}`}>
-                        <Download />
-                      </a>
-                    </Button>
+                    {c.kind === "CONTRACT" && (
+                      <Button size="icon" variant="ghost" title="Download payslip (preview)" asChild>
+                        <a href={`/api/payslip/${c.id}`}>
+                          <Download />
+                        </a>
+                      </Button>
+                    )}
                     <Button size="icon" variant="ghost" title="Edit" onClick={() => setEditing(c)}>
                       <Pencil />
                     </Button>

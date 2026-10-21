@@ -99,7 +99,7 @@ export function CreateCutoffForm({ defaultDate }: { defaultDate: string }) {
       {week && (
         <p className="text-xs text-muted-foreground md:col-span-6">
           {formatDate(week.periodStart)} – {formatDate(week.periodEnd)} · payout {formatDate(week.payoutDate)} · gross{" "}
-          {formatUsd(gross)} · Mom {formatUsd(round2(gross * VIEWER_SHARE))}
+          {formatUsd(gross)} · {isIncentive ? "100% yours (not shared with Mom)" : `Mom ${formatUsd(round2(gross * VIEWER_SHARE))}`}
           {!isIncentive && " · Leave Earned USD blank to use hours × $30. Fill it in when the platform's amount differs from that (its hours are rounded)."}
         </p>
       )}

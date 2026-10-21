@@ -16,7 +16,7 @@ export default async function CutoffsPage() {
   // Transfer details for every received cutoff: exact 30% PHP amount + recipient.
   const payouts: Record<string, Payout> = {};
   for (const c of cutoffs) {
-    if (c.status !== "RECEIVED" || c.netPhp == null) continue;
+    if (c.kind !== "CONTRACT" || c.status !== "RECEIVED" || c.netPhp == null) continue;
     const amount = c.netPhp;
     const copyText = [
       `Bank/Wallet: ${settings.bankName}`,

@@ -10,8 +10,8 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { id } = await params;
 
-  const cutoff = await prisma.cutoff.findUnique({ where: { id }, select: { status: true } });
-  if (!cutoff) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const cutoff = await prisma.cutoff.findUnique({ where: { id }, select: { status: true, kind: true } });
+  if (!cutoff || cutoff.kind !== "CONTRACT") return NextResponse.json({ error: "Not found" }, { status: 404 });
   // Mom can download payslips only once a cutoff is received; Kyle can preview any.
   if (cutoff.status !== "RECEIVED" && !(await isAdminSession())) {
     return NextResponse.json({ error: "Payslip available once received" }, { status: 403 });

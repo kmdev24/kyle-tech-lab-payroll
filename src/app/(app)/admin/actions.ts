@@ -41,11 +41,13 @@ const cutoffSchema = z
     message: "Enter the hours worked",
   });
 
-/** Mom's 30% of an actual earned amount, stored so viewer queries never read earnedUsd. */
-function earnedFields(earnedUsd: number | undefined | null) {
-  return earnedUsd == null
-    ? { earnedUsd: null, viewerEarnedUsd: null }
-    : { earnedUsd, viewerEarnedUsd: round2(earnedUsd * VIEWER_SHARE) };
+/**
+ * Mom's 30% of an actual earned amount, stored so viewer queries never read earnedUsd.
+ * Incentives are 100% Kyle's, so her share of those is zero.
+ */
+function earnedFields(earnedUsd: number | undefined | null, kind: "CONTRACT" | "INCENTIVE") {
+  if (earnedUsd == null) return { earnedUsd: null, viewerEarnedUsd: null };
+  return { earnedUsd, viewerEarnedUsd: kind === "INCENTIVE" ? 0 : round2(earnedUsd * VIEWER_SHARE) };
 }
 
 export async function createCutoff(_: ActionResult | null, form: FormData): Promise<ActionResult> {
@@ -67,7 +69,7 @@ export async function createCutoff(_: ActionResult | null, form: FormData): Prom
       hoursWorked: kind === "INCENTIVE" ? 0 : hoursWorked,
       baseRate: BASE_RATE_USD,
       viewerRate: VIEWER_RATE_USD,
-      ...earnedFields(earnedUsd),
+      ...earnedFields(earnedUsd, kind),
       notes: notes || null,
     },
   });
@@ -90,7 +92,7 @@ export async function updateCutoff(_: ActionResult | null, form: FormData): Prom
     where: { id },
     data: {
       hoursWorked: existing.kind === "INCENTIVE" ? 0 : hours.data,
-      ...earnedFields(earned.data),
+      ...earnedFields(earned.data, existing.kind),
       notes: notes || null,
     },
   });
@@ -105,9 +107,11 @@ export async function deleteCutoff(id: string): Promise<ActionResult> {
   return { ok: true, message: "Cutoff deleted" };
 }
 
-/** Marks a cutoff RECEIVED, locks the FX rate, and emails Mom's encrypted payslip. */
+/** Marks a cutoff RECEIVED, locks the FX rate, and emails Mom's encrypted payslip (contracts only). */
 export async function markReceived(id: string): Promise<ActionResult> {
   await requireAdmin();
+  const cutoff = await prisma.cutoff.findUnique({ where: { id }, select: { kind: true } });
+  if (!cutoff) return { ok: false, message: "Cutoff not found" };
   const settings = await getSettings();
   const live = await fetchUsdPhpRate();
   if (!live) return { ok: false, message: "Couldn't fetch the live USD→PHP rate. Try again in a minute." };
@@ -121,6 +125,11 @@ export async function markReceived(id: string): Promise<ActionResult> {
       fxFeePercent: settings.fxFeePercent,
     },
   });
+
+  if (cutoff.kind === "INCENTIVE") {
+    refresh();
+    return { ok: true, message: "Incentive marked received (100% yours, no payslip sent)" };
+  }
 
   const email = await emailPayslip(id).catch((e: Error) => ({ sent: false as const, reason: e.message }));
   refresh();

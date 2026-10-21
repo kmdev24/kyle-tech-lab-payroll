@@ -131,7 +131,8 @@ function toViewerCutoff(
 export async function getViewerDashboard() {
   const [settings, rows] = await Promise.all([
     prisma.paymentSettings.findUnique({ where: { id: 1 }, select: { fxFeePercent: true } }),
-    prisma.cutoff.findMany({ select: viewerSelect, orderBy: { periodStart: "desc" } }),
+    // Incentives are 100% Kyle's, so Mom's queries only ever see contract weeks.
+    prisma.cutoff.findMany({ where: { kind: "CONTRACT" }, select: viewerSelect, orderBy: { periodStart: "desc" } }),
   ]);
   const live = await getFxQuote(Number(settings?.fxFeePercent ?? DEFAULT_FX_FEE_PERCENT));
   const cutoffs = rows.map((r) => toViewerCutoff(r, live));
@@ -156,10 +157,10 @@ export async function getViewerDashboard() {
   };
 }
 
-/** A single cutoff in the viewer projection (used for payslips: same for both roles). */
+/** A single contract cutoff in the viewer projection (used for payslips). Incentives return null. */
 export async function getViewerCutoff(id: string) {
   const [row, settings] = await Promise.all([
-    prisma.cutoff.findUnique({ where: { id }, select: viewerSelect }),
+    prisma.cutoff.findFirst({ where: { id, kind: "CONTRACT" }, select: viewerSelect }),
     prisma.paymentSettings.findUnique({ where: { id: 1 }, select: { fxFeePercent: true } }),
   ]);
   if (!row) return null;
@@ -192,7 +193,9 @@ export async function getAdminDashboard() {
   ]);
 
   const cutoffs: AdminCutoff[] = rows.map((r) => {
-    const v = toViewerCutoff(r, live);
+    const base = toViewerCutoff(r, live);
+    // Incentives are 100% Kyle's: Mom's share is zero.
+    const v = r.kind === "INCENTIVE" ? { ...base, netUsd: 0, netPhp: base.netPhp == null ? null : 0 } : base;
     const { effectiveRate } = resolveRate(r, live);
     const baseRate = Number(r.baseRate);
     const earnedUsd = r.earnedUsd != null ? Number(r.earnedUsd) : null;
