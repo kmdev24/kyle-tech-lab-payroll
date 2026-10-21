@@ -78,8 +78,12 @@ export function buildPayslipPdf(opts: {
   row("Status", cutoff.status === "RECEIVED" ? "Received" : "Pending");
 
   section("Earnings");
-  row("Hours Worked", cutoff.hoursWorked.toFixed(2));
-  row("Hourly Rate", `${formatUsd(cutoff.rateUsd)} / hr`);
+  if (cutoff.kind === "INCENTIVE") {
+    row("Type", "Incentive");
+  } else {
+    row("Hours Worked", cutoff.hoursWorked.toFixed(2));
+    row("Hourly Rate", `${formatUsd(cutoff.rateUsd)} / hr`);
+  }
   row("Net Payout (USD)", formatUsd(cutoff.netUsd), true);
   row("Net Payout (PHP)", cutoff.netPhp != null ? pdfPhp(cutoff.netPhp) : "-", true);
 

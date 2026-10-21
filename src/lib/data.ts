@@ -4,11 +4,12 @@
  * Every read the app does goes through one of two projections:
  *  - Admin*: full figures (gross, 70/30 split).
  *  - Viewer*: only Mom's hours, $9.00/hr rate and net pay. The Prisma `select`
- *    for viewer queries never includes `baseRate`, so gross revenue and Kyle's
+ *    for viewer queries never includes `baseRate` or `earnedUsd` (Mom's share of
+ *    the actual amount is precomputed into `viewerEarnedUsd`), so gross revenue and Kyle's
  *    share are never loaded from the database for a VIEWER session, let alone
  *    serialized to the browser or written into a payslip.
  */
-import type { CutoffStatus } from "@prisma/client";
+import type { CutoffStatus, EntryKind } from "@prisma/client";
 import { prisma } from "./prisma";
 import { applyFee, getFxQuote, type FxQuote } from "./fx";
 import { DEFAULT_FX_FEE_PERCENT, HOUSE_FUND_GOAL_PHP } from "./constants";
@@ -65,6 +66,8 @@ const toPhp = (usd: number, rate: number | null) => (rate == null ? null : round
 
 const viewerSelect = {
   id: true,
+  kind: true,
+  viewerEarnedUsd: true,
   periodStart: true,
   periodEnd: true,
   payoutDate: true,
@@ -78,6 +81,7 @@ const viewerSelect = {
 
 export type ViewerCutoff = {
   id: string;
+  kind: EntryKind;
   periodStart: string;
   periodEnd: string;
   payoutDate: string;
@@ -92,6 +96,8 @@ export type ViewerCutoff = {
 function toViewerCutoff(
   row: {
     id: string;
+    kind: EntryKind;
+    viewerEarnedUsd: unknown;
     periodStart: Date;
     periodEnd: Date;
     payoutDate: Date;
@@ -105,10 +111,11 @@ function toViewerCutoff(
 ): ViewerCutoff {
   const hours = Number(row.hoursWorked);
   const rate = Number(row.viewerRate);
-  const netUsd = round2(hours * rate);
+  const netUsd = row.viewerEarnedUsd != null ? Number(row.viewerEarnedUsd) : round2(hours * rate);
   const { effectiveRate, locked } = resolveRate(row, live);
   return {
     id: row.id,
+    kind: row.kind,
     periodStart: row.periodStart.toISOString(),
     periodEnd: row.periodEnd.toISOString(),
     payoutDate: row.payoutDate.toISOString(),
@@ -164,6 +171,8 @@ export async function getViewerCutoff(id: string) {
 
 export type AdminCutoff = ViewerCutoff & {
   baseRateUsd: number;
+  /** Actual USD earned entered from the client platform, if any. */
+  earnedUsd: number | null;
   grossUsd: number;
   grossPhp: number | null;
   kyleUsd: number;
@@ -186,11 +195,13 @@ export async function getAdminDashboard() {
     const v = toViewerCutoff(r, live);
     const { effectiveRate } = resolveRate(r, live);
     const baseRate = Number(r.baseRate);
-    const grossUsd = round2(v.hoursWorked * baseRate);
+    const earnedUsd = r.earnedUsd != null ? Number(r.earnedUsd) : null;
+    const grossUsd = earnedUsd ?? round2(v.hoursWorked * baseRate);
     const kyleUsd = round2(grossUsd - v.netUsd);
     return {
       ...v,
       baseRateUsd: baseRate,
+      earnedUsd,
       grossUsd,
       grossPhp: toPhp(grossUsd, effectiveRate),
       kyleUsd,

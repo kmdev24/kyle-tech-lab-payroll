@@ -73,10 +73,8 @@ async function main() {
     const thisWeek = weekFor(now);
     const lastWeek = weekFor(new Date(now.getTime() - 7 * 86400000));
 
-    await prisma.cutoff.upsert({
-      where: { periodStart: lastWeek.start },
-      update: {},
-      create: {
+    const existing = await prisma.cutoff.count({ where: { kind: "CONTRACT", periodStart: { in: [lastWeek.start, thisWeek.start] } } });
+    if (existing === 0) await prisma.cutoff.createMany({ data: [{
         periodStart: lastWeek.start,
         periodEnd: lastWeek.end,
         payoutDate: lastWeek.payout,
@@ -85,18 +83,12 @@ async function main() {
         fxRate: 58.5,
         fxFeePercent: 1.5,
         receivedAt: new Date(),
-      },
-    });
-    await prisma.cutoff.upsert({
-      where: { periodStart: thisWeek.start },
-      update: {},
-      create: {
+      }, {
         periodStart: thisWeek.start,
         periodEnd: thisWeek.end,
         payoutDate: thisWeek.payout,
         hoursWorked: 32.5,
-      },
-    });
+      }] });
   }
 
   console.log(

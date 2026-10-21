@@ -15,6 +15,11 @@ enum Role {
   VIEWER
 }
 
+enum EntryKind {
+  CONTRACT
+  INCENTIVE
+}
+
 enum CutoffStatus {
   PENDING
   RECEIVED
@@ -30,28 +35,34 @@ model User {
   updatedAt    DateTime @updatedAt
 }
 
-// One row per Saturday-to-Friday week.
+// One CONTRACT row per Saturday-to-Friday week, plus any one-off INCENTIVE rows.
 model Cutoff {
-  id           String       @id @default(cuid())
-  periodStart  DateTime     @db.Date // Saturday
-  periodEnd    DateTime     @db.Date // Friday
-  payoutDate   DateTime     @db.Date // following Wednesday
-  hoursWorked  Decimal      @db.Decimal(8, 2)
+  id              String       @id @default(cuid())
+  kind            EntryKind    @default(CONTRACT)
+  periodStart     DateTime     @db.Date // Saturday
+  periodEnd       DateTime     @db.Date // Friday
+  payoutDate      DateTime     @db.Date // following Wednesday
+  hoursWorked     Decimal      @db.Decimal(8, 2)
   // Admin-only figures. Never selected for the VIEWER role.
-  baseRate     Decimal      @default(30.00) @db.Decimal(8, 2)
+  baseRate        Decimal      @default(30.00) @db.Decimal(8, 2)
+  // Actual USD earned as shown by the client platform (its hours are rounded,
+  // so this can differ slightly from hours x $30). Overrides hours x baseRate.
+  earnedUsd       Decimal?     @db.Decimal(10, 2)
   // The only rate the VIEWER role can read ($9.00 = 30% of $30.00).
-  viewerRate   Decimal      @default(9.00) @db.Decimal(8, 2)
-  status       CutoffStatus @default(PENDING)
+  viewerRate      Decimal      @default(9.00) @db.Decimal(8, 2)
+  // Mom's 30% of earnedUsd, precomputed on save so viewer queries never read earnedUsd.
+  viewerEarnedUsd Decimal?     @db.Decimal(10, 2)
+  status          CutoffStatus @default(PENDING)
   // FX is locked when the cutoff is marked RECEIVED; null means "use live rate".
-  fxRate       Decimal?     @db.Decimal(12, 6)
-  fxFeePercent Decimal?     @db.Decimal(5, 2)
-  receivedAt   DateTime?
-  emailSentAt  DateTime?
-  notes        String?      @db.Text
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
+  fxRate          Decimal?     @db.Decimal(12, 6)
+  fxFeePercent    Decimal?     @db.Decimal(5, 2)
+  receivedAt      DateTime?
+  emailSentAt     DateTime?
+  notes           String?      @db.Text
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
 
-  @@unique([periodStart])
+  @@index([periodStart])
   @@index([status])
 }
 

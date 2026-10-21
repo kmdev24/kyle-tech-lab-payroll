@@ -9,7 +9,8 @@ import { fetchUsdPhpRate } from "@/lib/fx";
 import { getSettings } from "@/lib/data";
 import { emailPayslip } from "@/lib/payslip";
 import { validateQrPh } from "@/lib/qrph";
-import { BASE_RATE_USD, VIEWER_RATE_USD } from "@/lib/constants";
+import { BASE_RATE_USD, VIEWER_RATE_USD, VIEWER_SHARE } from "@/lib/constants";
+import { round2 } from "@/lib/utils";
 
 export type ActionResult = { ok: boolean; message: string };
 
@@ -18,41 +19,81 @@ function refresh() {
   revalidatePath("/admin/cutoffs");
 }
 
-const cutoffSchema = z.object({
-  weekOf: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Pick a date"),
-  hoursWorked: z.coerce.number().min(0).max(168),
-  notes: z.string().max(500).optional(),
-});
+// Hours and money are kept to 2 decimals, matching the client platform's report.
+const hoursField = z.coerce.number().min(0).max(168).transform(round2);
+const optionalUsd = z.preprocess(
+  (v) => (v === "" || v == null ? undefined : v),
+  z.coerce.number().min(0).max(1_000_000).transform(round2).optional(),
+);
+
+const cutoffSchema = z
+  .object({
+    kind: z.enum(["CONTRACT", "INCENTIVE"]).default("CONTRACT"),
+    weekOf: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Pick a date"),
+    hoursWorked: z.preprocess((v) => (v === "" || v == null ? 0 : v), hoursField),
+    earnedUsd: optionalUsd,
+    notes: z.string().max(500).optional(),
+  })
+  .refine((d) => d.kind === "CONTRACT" || d.earnedUsd != null, {
+    message: "Enter the incentive amount (USD)",
+  })
+  .refine((d) => d.kind === "INCENTIVE" || d.hoursWorked > 0 || d.earnedUsd != null, {
+    message: "Enter the hours worked",
+  });
+
+/** Mom's 30% of an actual earned amount, stored so viewer queries never read earnedUsd. */
+function earnedFields(earnedUsd: number | undefined | null) {
+  return earnedUsd == null
+    ? { earnedUsd: null, viewerEarnedUsd: null }
+    : { earnedUsd, viewerEarnedUsd: round2(earnedUsd * VIEWER_SHARE) };
+}
 
 export async function createCutoff(_: ActionResult | null, form: FormData): Promise<ActionResult> {
   await requireAdmin();
   const parsed = cutoffSchema.safeParse(Object.fromEntries(form));
   if (!parsed.success) return { ok: false, message: parsed.error.issues[0].message };
+  const { kind, hoursWorked, earnedUsd, notes } = parsed.data;
   const week = cutoffWeekFor(parsed.data.weekOf);
 
-  const exists = await prisma.cutoff.findUnique({ where: { periodStart: week.periodStart } });
-  if (exists) return { ok: false, message: "A cutoff for that week already exists. Edit it instead." };
+  if (kind === "CONTRACT") {
+    const exists = await prisma.cutoff.findFirst({ where: { kind, periodStart: week.periodStart } });
+    if (exists) return { ok: false, message: "A cutoff for that week already exists. Edit it instead." };
+  }
 
   await prisma.cutoff.create({
     data: {
       ...week,
-      hoursWorked: parsed.data.hoursWorked,
+      kind,
+      hoursWorked: kind === "INCENTIVE" ? 0 : hoursWorked,
       baseRate: BASE_RATE_USD,
       viewerRate: VIEWER_RATE_USD,
-      notes: parsed.data.notes || null,
+      ...earnedFields(earnedUsd),
+      notes: notes || null,
     },
   });
   refresh();
-  return { ok: true, message: "Cutoff created" };
+  return { ok: true, message: kind === "INCENTIVE" ? "Incentive added" : "Cutoff created" };
 }
 
 export async function updateCutoff(_: ActionResult | null, form: FormData): Promise<ActionResult> {
   await requireAdmin();
   const id = String(form.get("id") ?? "");
-  const hours = z.coerce.number().min(0).max(168).safeParse(form.get("hoursWorked"));
-  if (!id || !hours.success) return { ok: false, message: "Invalid hours" };
+  const existing = id ? await prisma.cutoff.findUnique({ where: { id }, select: { kind: true } }) : null;
+  if (!existing) return { ok: false, message: "Cutoff not found" };
+  const hours = z.preprocess((v) => (v === "" || v == null ? 0 : v), hoursField).safeParse(form.get("hoursWorked"));
+  const earned = optionalUsd.safeParse(form.get("earnedUsd"));
+  if (!hours.success) return { ok: false, message: "Invalid hours" };
+  if (!earned.success) return { ok: false, message: "Invalid earned amount" };
+  if (existing.kind === "INCENTIVE" && earned.data == null) return { ok: false, message: "Enter the incentive amount (USD)" };
   const notes = String(form.get("notes") ?? "").slice(0, 500);
-  await prisma.cutoff.update({ where: { id }, data: { hoursWorked: hours.data, notes: notes || null } });
+  await prisma.cutoff.update({
+    where: { id },
+    data: {
+      hoursWorked: existing.kind === "INCENTIVE" ? 0 : hours.data,
+      ...earnedFields(earned.data),
+      notes: notes || null,
+    },
+  });
   refresh();
   return { ok: true, message: "Cutoff updated" };
 }

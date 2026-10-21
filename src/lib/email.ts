@@ -33,8 +33,12 @@ export async function sendPayslipEmail(opts: {
         <p style="margin-top:24px">Hi ${escapeHtml(opts.recipientName)},</p>
         <p>Your payout for <b>${period}</b> has been received.</p>
         <table style="width:100%;border-collapse:collapse;margin:16px 0">
-          <tr><td style="padding:6px 0;color:#64748b">Hours Worked</td><td style="text-align:right">${cutoff.hoursWorked.toFixed(2)}</td></tr>
-          <tr><td style="padding:6px 0;color:#64748b">Rate</td><td style="text-align:right">${formatUsd(cutoff.rateUsd)}/hr</td></tr>
+          ${
+            cutoff.kind === "INCENTIVE"
+              ? `<tr><td style="padding:6px 0;color:#64748b">Type</td><td style="text-align:right">Incentive</td></tr>`
+              : `<tr><td style="padding:6px 0;color:#64748b">Hours Worked</td><td style="text-align:right">${cutoff.hoursWorked.toFixed(2)}</td></tr>
+          <tr><td style="padding:6px 0;color:#64748b">Rate</td><td style="text-align:right">${formatUsd(cutoff.rateUsd)}/hr</td></tr>`
+          }
           <tr><td style="padding:6px 0;color:#64748b">Net Payout</td><td style="text-align:right"><b>${amount}</b></td></tr>
           <tr><td style="padding:6px 0;color:#64748b">Payout Date</td><td style="text-align:right">${formatDate(cutoff.payoutDate)}</td></tr>
         </table>

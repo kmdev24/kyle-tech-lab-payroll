@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import type { AdminCutoff } from "@/lib/data";
 import { formatDate, formatPhp, formatUsd } from "@/lib/utils";
 import { StatusBadge } from "@/components/status-badge";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { deleteCutoff, markPending, markReceived, resendPayslip, type ActionResult } from "../actions";
@@ -61,12 +62,13 @@ export function CutoffTable({ cutoffs, payouts }: { cutoffs: AdminCutoff[]; payo
             return (
               <TableRow key={c.id}>
                 <TableCell className="whitespace-nowrap">
+                  {c.kind === "INCENTIVE" && <Badge className="mr-2">Incentive</Badge>}
                   {formatDate(c.periodStart, { year: undefined })} – {formatDate(c.periodEnd)}
                   {c.notes && <div className="max-w-[200px] truncate text-xs text-muted-foreground">{c.notes}</div>}
                 </TableCell>
                 <TableCell className="whitespace-nowrap">{formatDate(c.payoutDate)}</TableCell>
-                <TableCell className="text-right tabular-nums">{c.hoursWorked.toFixed(2)}</TableCell>
-                <Money usd={c.grossUsd} php={c.grossPhp} />
+                <TableCell className="text-right tabular-nums">{c.kind === "INCENTIVE" ? "–" : c.hoursWorked.toFixed(2)}</TableCell>
+                <Money usd={c.grossUsd} php={c.grossPhp} note={c.earnedUsd != null && c.kind === "CONTRACT" ? "actual" : undefined} />
                 <Money usd={c.kyleUsd} php={c.kylePhp} />
                 <Money usd={c.netUsd} php={c.netPhp} />
                 <TableCell className="whitespace-nowrap text-xs text-muted-foreground tabular-nums">
@@ -166,9 +168,10 @@ export function CutoffTable({ cutoffs, payouts }: { cutoffs: AdminCutoff[]; payo
   );
 }
 
-function Money({ usd, php }: { usd: number; php: number | null }) {
+function Money({ usd, php, note }: { usd: number; php: number | null; note?: string }) {
   return (
     <TableCell className="text-right tabular-nums">
+      {note && <span className="mr-1 text-[10px] uppercase text-violet-300">{note}</span>}
       {formatUsd(usd)}
       <div className="text-xs text-muted-foreground">{php != null ? formatPhp(php) : "–"}</div>
     </TableCell>

@@ -27,9 +27,25 @@ export function EditCutoffDialog({ cutoff, onClose }: { cutoff: AdminCutoff; onC
     <Modal title={`Edit ${formatDate(cutoff.periodStart, { year: undefined })} – ${formatDate(cutoff.periodEnd)}`} onClose={onClose}>
       <form onSubmit={submitWithoutReset(action)} className="space-y-4">
         <input type="hidden" name="id" value={cutoff.id} />
+        {cutoff.kind === "CONTRACT" && (
+          <div className="space-y-2">
+            <Label htmlFor="edit-hours">Hours worked</Label>
+            <Input id="edit-hours" name="hoursWorked" type="number" step="0.01" min="0" max="168" inputMode="decimal" defaultValue={cutoff.hoursWorked} required />
+          </div>
+        )}
         <div className="space-y-2">
-          <Label htmlFor="edit-hours">Hours worked</Label>
-          <Input id="edit-hours" name="hoursWorked" type="number" step="0.25" min="0" max="168" defaultValue={cutoff.hoursWorked} required />
+          <Label htmlFor="edit-earned">{cutoff.kind === "INCENTIVE" ? "Amount (USD)" : "Earned USD (optional)"}</Label>
+          <Input
+            id="edit-earned"
+            name="earnedUsd"
+            type="number"
+            step="0.01"
+            min="0"
+            inputMode="decimal"
+            defaultValue={cutoff.earnedUsd ?? ""}
+            placeholder={cutoff.kind === "INCENTIVE" ? "" : "blank = hours × $30"}
+            required={cutoff.kind === "INCENTIVE"}
+          />
         </div>
         <div className="space-y-2">
           <Label htmlFor="edit-notes">Notes</Label>
@@ -37,7 +53,7 @@ export function EditCutoffDialog({ cutoff, onClose }: { cutoff: AdminCutoff; onC
         </div>
         {cutoff.status === "RECEIVED" && (
           <p className="text-xs text-amber-300">
-            This cutoff is already received. Changing hours won&apos;t re-send the payslip; use the mail button afterwards.
+            This cutoff is already received. Changing amounts won&apos;t re-send the payslip; use the mail button afterwards.
           </p>
         )}
         <Button type="submit" className="w-full" disabled={pending}>

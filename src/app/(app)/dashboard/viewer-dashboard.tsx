@@ -2,6 +2,7 @@ import { CheckCircle2, Clock, Download, Hourglass, Wallet } from "lucide-react";
 import type { getViewerDashboard } from "@/lib/data";
 import { StatCard } from "@/components/stat-card";
 import { StatusBadge } from "@/components/status-badge";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -64,11 +65,12 @@ export function ViewerDashboard({ name, data }: { name: string; data: Data }) {
               {cutoffs.map((c) => (
                 <TableRow key={c.id}>
                   <TableCell className="whitespace-nowrap">
+                    {c.kind === "INCENTIVE" && <Badge className="mr-2">Incentive</Badge>}
                     {formatDate(c.periodStart, { year: undefined })} – {formatDate(c.periodEnd)}
                   </TableCell>
                   <TableCell className="whitespace-nowrap">{formatDate(c.payoutDate)}</TableCell>
-                  <TableCell className="text-right tabular-nums">{c.hoursWorked.toFixed(2)}</TableCell>
-                  <TableCell className="text-right tabular-nums">{formatUsd(c.rateUsd)}/hr</TableCell>
+                  <TableCell className="text-right tabular-nums">{c.kind === "INCENTIVE" ? "–" : c.hoursWorked.toFixed(2)}</TableCell>
+                  <TableCell className="text-right tabular-nums">{c.kind === "INCENTIVE" ? "–" : `${formatUsd(c.rateUsd)}/hr`}</TableCell>
                   <TableCell className="text-right tabular-nums">{formatUsd(c.netUsd)}</TableCell>
                   <TableCell className="text-right tabular-nums font-semibold">
                     {c.netPhp != null ? formatPhp(c.netPhp) : "–"}

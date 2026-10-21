@@ -3,6 +3,7 @@ import { ArrowRight, Banknote, Clock, Home, PiggyBank, TrendingUp, User, Wallet 
 import type { getAdminDashboard } from "@/lib/data";
 import { StatCard } from "@/components/stat-card";
 import { StatusBadge } from "@/components/status-badge";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -94,10 +95,11 @@ export function AdminDashboard({ data }: { data: Data }) {
               {cutoffs.slice(0, 8).map((c) => (
                 <TableRow key={c.id}>
                   <TableCell className="whitespace-nowrap">
+                    {c.kind === "INCENTIVE" && <Badge className="mr-2">Incentive</Badge>}
                     {formatDate(c.periodStart, { year: undefined })} – {formatDate(c.periodEnd)}
                   </TableCell>
                   <TableCell className="whitespace-nowrap">{formatDate(c.payoutDate)}</TableCell>
-                  <TableCell className="text-right tabular-nums">{c.hoursWorked.toFixed(2)}</TableCell>
+                  <TableCell className="text-right tabular-nums">{c.kind === "INCENTIVE" ? "–" : c.hoursWorked.toFixed(2)}</TableCell>
                   <TableCell className="text-right tabular-nums">
                     {formatUsd(c.grossUsd)}
                     <div className="text-xs text-muted-foreground">{c.grossPhp != null ? formatPhp(c.grossPhp) : "–"}</div>
