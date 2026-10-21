@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
@@ -226,4 +227,28 @@ export async function deleteGoal(id: string): Promise<ActionResult> {
   await prisma.savingsGoal.delete({ where: { id } });
   refreshGoals();
   return { ok: true, message: "Goal deleted" };
+}
+
+const accountSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().trim().min(1, "Enter a name").max(80),
+  email: z.string().trim().toLowerCase().email("Enter a valid email"),
+  password: z.union([z.literal(""), z.string().min(8, "New password must be at least 8 characters").max(128)]),
+});
+
+/** Updates a login's display name, email and (optionally) password. Roles can't be changed here. */
+export async function saveAccount(_: ActionResult | null, form: FormData): Promise<ActionResult> {
+  await requireAdmin();
+  const parsed = accountSchema.safeParse(Object.fromEntries(form));
+  if (!parsed.success) return { ok: false, message: parsed.error.issues[0].message };
+  const { id, name, email, password } = parsed.data;
+  const taken = await prisma.user.findFirst({ where: { email, NOT: { id } }, select: { id: true } });
+  if (taken) return { ok: false, message: "Another account already uses that email" };
+  await prisma.user.update({
+    where: { id },
+    data: { name, email, ...(password ? { passwordHash: await bcrypt.hash(password, 12) } : {}) },
+  });
+  revalidatePath("/admin/settings");
+  revalidatePath("/dashboard");
+  return { ok: true, message: password ? "Account and password updated" : "Account updated" };
 }

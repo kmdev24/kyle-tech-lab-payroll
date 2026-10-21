@@ -5,7 +5,12 @@ import { sendPayslipEmail, type EmailResult } from "./email";
 import { normalizePdfPassword } from "./utils";
 
 async function viewerName() {
-  const viewer = await prisma.user.findFirst({ where: { role: "VIEWER" }, select: { name: true } });
+  // Skip leftover placeholder accounts (no real email) from an early deploy.
+  const viewer = await prisma.user.findFirst({
+    where: { role: "VIEWER", email: { contains: "@" } },
+    orderBy: { createdAt: "desc" },
+    select: { name: true },
+  });
   return viewer?.name ?? "Recipient";
 }
 
